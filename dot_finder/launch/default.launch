@@ -1,0 +1,31 @@
+<launch> 
+
+    <!-- Name of the YAML file containing the marker positions -->
+    <arg name="YAML_file_name" default="demo_marker_positions"/>
+
+    <!-- File containing the the marker positions in the trackable's frame of reference 
+    <arg name="marker_positions_file" default="$(find mutual_camera_localization)/marker_positions/$(arg YAML_file_name).yaml"/> -->
+
+    <node name="mutual_camera_localization" pkg="mutual_camera_localization" type="mutual_camera_localization" respawn="false" output="screen"> 
+        <!--<rosparam command="load" file="$(arg marker_positions_file)"/>-->
+        <param name= "gaussian_sigma" value = "0.1" />
+        <param name= "min_blob_area" value = "30" />
+        <param name= "max_blob_area" value = "100" />
+        <param name= "max_width_height_distortion" value = "0.4" />
+        <param name= "max_circular_distortion" value = "1.5" />
+
+        <param name= "line_angle_tolerance" value = "0.005" />
+        <param name= "hor_line_angle" value = "0.35" />
+        <param name= "pos_ratio" value = "2.83" />
+        <param name= "pos_ratio_tolerance" value = "0.6" />
+        <param name= "radius_ratio_tolerance" value = "0.4" />
+        <param name= "ratio_int_tolerance" value = "0.7" />
+        <param name= "ratio_ellipse_max" value = "1.5" />
+        <param name= "ratio_ellipse_min" value = "0.65" />
+
+        <param name= "pos_left_led_cam_a" value = "0.71" />
+        <param name= "pos_right_led_cam_a" value = "0.87" />
+        <param name= "pos_left_led_cam_b" value = "0.74" />
+        <param name= "pos_right_led_cam_b" value = "0.83" />
+    </node>
+</launch>
