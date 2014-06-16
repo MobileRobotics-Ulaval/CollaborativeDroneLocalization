@@ -123,58 +123,58 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
     // Identify the blobs in the image
     for (unsigned i = 0; i < contours.size(); i++)
     {
+        cv::Rect rect = cv::boundingRect(contours[i]); // Bounding box
+        double radius = (rect.width + rect.height) / 4; // Average radius
+        //double radius = (sqrt(rect.width*rect.width + rect.height*rect.height)); // Average radius
+
+         cv::Moments mu;
+         mu = cv::moments(contours[i], false);
+         cv::Point2f mc;
+         mc = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00) + cv::Point2f(ROI.x, ROI.y);
         double area = cv::contourArea(contours[i]); // Blob area
 
-        if (area > 0.01) {
-           cv::Rect rect = cv::boundingRect(contours[i]); // Bounding box
-           double radius = (rect.width + rect.height) / 4; // Average radius
-           //double radius = (sqrt(rect.width*rect.width + rect.height*rect.height)); // Average radius
+        if (area < 0.01){ continue; }
 
-            cv::Moments mu;
-            mu = cv::moments(contours[i], false);
-            cv::Point2f mc;
-            mc = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00) + cv::Point2f(ROI.x, ROI.y);
-            double width_height_distortion = std::abs(1 - std::min((double)rect.width / (double)rect.height, (double)rect.height / (double)rect.width));
-            double circular_distortion1 = std::abs(1 - (area / (CV_PI * pow(rect.width / 2, 2.0))));
-            double circular_distortion2 = std::abs(1 - (area / (CV_PI * pow(rect.height / 2, 2.0))));
+        double width_height_distortion = std::abs(1 - std::min((double)rect.width / (double)rect.height, (double)rect.height / (double)rect.width));
+        double circular_distortion1 = std::abs(1 - (area / (CV_PI * pow(rect.width / 2, 2.0))));
+        double circular_distortion2 = std::abs(1 - (area / (CV_PI * pow(rect.height / 2, 2.0))));
 
-            cv::RotatedRect minEllipse;
-            double RatioEllipse = 1.0;
-            if (contours[i].size()>4) {
-                minEllipse = cv::fitEllipse(cv::Mat(contours[i]));
-                RatioEllipse = float(minEllipse.boundingRect().width+1.0)/float(minEllipse.boundingRect().height+1.0);  // the 0.5 is to increase immunity to small circles.
-            }
-            int x, y;
-            double total_intensity=0.0,avg_intensity;
-            for (x = rect.x; x<rect.x+rect.width; x++) {
-                for (y = rect.y; y<rect.y+rect.height; y++) {
-                    cv::Scalar intensity = orangeMask.at<uchar>(y, x);
-                    total_intensity+= float(intensity.val[0]);
-                }
-            }
-            avg_intensity = total_intensity/area;
-
-            if (true){
-                // We want to output some data for further analysis in matlab.
-                printf("%6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %8.2f, %6.2f, %.2f, %d\n",
-                       mc.x, mc.y, area, radius,
-                       width_height_distortion, circular_distortion1, circular_distortion2,
-                       total_intensity, avg_intensity ,RatioEllipse, DataIndex);
-                DataIndex++;
-            }
-
-
-            // We will prune the blobs set based on appearance. These were found using matlab.
-            //if ((area < max_blob_area) && (circular_distortion1 < max_circular_distortion) && (circular_distortion2 < max_circular_distortion)
-            //      && (RatioEllipse < max_ratio_ellipse) && (RatioEllipse > min_ratio_ellipse )) {
-            // These will be used further down the filtering pipeline
-            // Ideally we would sort in order of intensity, and do a n choose k on a sliding window of that ranked intensity.
-            KeptArea.push_back(area);
-            KeptContoursPosition.push_back(mc);
-            KeptRadius.push_back(radius);
-            KeptAvgIntensity.push_back(avg_intensity);
-            // }
+        cv::RotatedRect minEllipse;
+        double RatioEllipse = 1.0;
+        if (contours[i].size()>4) {
+            minEllipse = cv::fitEllipse(cv::Mat(contours[i]));
+            RatioEllipse = float(minEllipse.boundingRect().width+1.0)/float(minEllipse.boundingRect().height+1.0);  // the 0.5 is to increase immunity to small circles.
         }
+        int x, y;
+        double total_intensity=0.0,avg_intensity;
+        for (x = rect.x; x<rect.x+rect.width; x++) {
+            for (y = rect.y; y<rect.y+rect.height; y++) {
+                cv::Scalar intensity = orangeMask.at<uchar>(y, x);
+                total_intensity+= float(intensity.val[0]);
+            }
+        }
+        avg_intensity = total_intensity/area;
+
+        if (false){
+            // We want to output some data for further analysis in matlab.
+            printf("%6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %8.2f, %6.2f, %.2f, %d\n",
+                   mc.x, mc.y, area, radius,
+                   width_height_distortion, circular_distortion1, circular_distortion2,
+                   total_intensity, avg_intensity ,RatioEllipse, DataIndex);
+            DataIndex++;
+        }
+
+
+        // We will prune the blobs set based on appearance. These were found using matlab.
+        //if ((area < max_blob_area) && (circular_distortion1 < max_circular_distortion) && (circular_distortion2 < max_circular_distortion)
+        //      && (RatioEllipse < max_ratio_ellipse) && (RatioEllipse > min_ratio_ellipse )) {
+        // These will be used further down the filtering pipeline
+        // Ideally we would sort in order of intensity, and do a n choose k on a sliding window of that ranked intensity.
+        KeptArea.push_back(area);
+        KeptContoursPosition.push_back(mc);
+        KeptRadius.push_back(radius);
+        KeptAvgIntensity.push_back(avg_intensity);
+        // }
     }
     printf("\n");
 
@@ -200,30 +200,33 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
     // Extract the trio
     vector<int> trio;
     vector< vector<int> > trioStack;
-    double length;
+    double length, lengthSquare, radiusI, radiusJ, radiusISquare, radiusJSquare;
     cv::Point2f p0, p;
     for(int i = 0; i < KeptContoursPosition.size(); i++){
         p0 = KeptContoursPosition[i];
-        double radiusI = KeptRadius[i] * 7;
+        radiusI = KeptRadius[i] * 7;
         if(radiusI < min_radius)
             radiusI = min_radius;
+        radiusISquare = radiusI * radiusI;
         for(int j = i + 1; j < KeptContoursPosition.size(); j++){
 
-            double radiusJ = KeptRadius[j] * 7;
+            radiusJ = KeptRadius[j] * 7;
             if(radiusJ < min_radius)
                 radiusJ = min_radius;
+            radiusJSquare = radiusJ * radiusJ;
 
             p = p0 - KeptContoursPosition[j];
-            length =  sqrt(p.x*p.x + p.y*p.y);
-            if(radiusI > length && radiusJ > length ){
+            lengthSquare =  p.x*p.x + p.y*p.y;
+            if(radiusISquare > lengthSquare && radiusJSquare > lengthSquare ){
+                length = sqrt(lengthSquare);
                 //double maxArea = std::max(KeptArea[i], KeptArea[j]);
                 //double minArea = std::min(KeptArea[i], KeptArea[j]);
                 double maxArea = std::max(radiusI, radiusJ);
                 double minArea = std::min(radiusI, radiusJ);
-                printf("%3d vs. %3d => n=%6.2f rI=%6.2f rJ=%6.2f  minArea=%3.1f maxArea=%3.1f min/max=%1.3f\n", i+1, j+1, length, radiusI, radiusJ,
+                /*printf("%3d vs. %3d => n=%6.2f rI=%6.2f rJ=%6.2f  minArea=%3.1f maxArea=%3.1f min/max=%1.3f\n", i+1, j+1, length, radiusI, radiusJ,
                        minArea,
                        maxArea,
-                       minArea / maxArea);
+                       minArea / maxArea);*/
                 if(minArea/maxArea >= 0.3){
 
                     // Find the closest blue dot
@@ -246,6 +249,7 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
                                     if(bestDist == -1 || d < bestDist){
                                         bestDist = d;
                                         bDotId = k;
+                                        k = blue_centers.size();
                                     }
                                 }
                             }
@@ -262,6 +266,15 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
                     }
                 }
             }
+            /*else if(length < 50){
+                printf("%3d vs. %3d => n=%6.2f rI=%6.2f rJ=%6.2f **\n", i+1, j+1, length);
+                trio.clear();
+                trio.push_back(i);      // First Orange dot
+                trio.push_back(j);      // Second Orange dot
+                trio.push_back(0); // Blue dot
+                trio.push_back(radiusI); // debug
+                trioStack.push_back(trio);
+            }*/
         }
 
         // Let's remove the orange's dot that form a trio

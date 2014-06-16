@@ -206,10 +206,10 @@ void DotFinder::publishVisualizationImage(cv::Mat &image, const sensor_msgs::Ima
  * The dynamic reconfigure callback function. This function updates the variable within the program whenever they are changed using dynamic reconfigure.
  */
 void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, uint32_t level){
-  marqueurDetector.setOrangeParameter(config.BlueHueHigh, config.BlueSatHigh, config.BlueValueHigh,
-                                      config.BlueHueLow,  config.BlueSatLow,  config.BlueValueLow);
-  marqueurDetector.setBlueParameter(config.OrangeHueHigh, config.OrangeSatHigh, config.OrangeValueHigh,
-                                    config.OrangeHueLow,  config.OrangeSatLow,  config.OrangeValueLow);
+  marqueurDetector.setOrangeParameter(config.OrangeHueHigh, config.OrangeSatHigh, config.OrangeValueHigh,
+                                      config.OrangeHueLow,  config.OrangeSatLow,  config.OrangeValueLow);
+  marqueurDetector.setBlueParameter(config.BlueHueHigh, config.BlueSatHigh, config.BlueValueHigh,
+                                    config.BlueHueLow,  config.BlueSatLow,  config.BlueValueLow);
 
   m_maskToggle = config.maskToggle;
   m_infoToggle = config.infoToggle;

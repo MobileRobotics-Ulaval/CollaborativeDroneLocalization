@@ -83,7 +83,7 @@ void Visualization::createVisualizationImage(cv::Mat &image, std::vector< std::v
     cv::circle(image, hypothesis[2], 2, CV_RGB(0, 150, 255), 2);
 
     // Radius circle
-    cv::circle(image, hypothesis[0], hypothesis[3].x, CV_RGB(0, 255, 0), 1);
+    //cv::circle(image, hypothesis[0], hypothesis[3].x, CV_RGB(0, 255, 0), 1);
 
 
     std::stringstream ss;
