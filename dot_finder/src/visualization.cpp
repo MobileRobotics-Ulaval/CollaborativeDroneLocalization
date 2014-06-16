@@ -50,7 +50,7 @@ void Visualization::createVisualizationImage(cv::Mat &image, std::vector< std::v
 
   std::vector<cv::Point2f> hypothesis;
   for(int index = 0; index < dots_hypothesis_distorted.size(); index++){
-    switch(index){
+    switch(index % 4){
       case 0:
         color = CV_RGB(0, 255, 0);
         break;
@@ -71,19 +71,24 @@ void Visualization::createVisualizationImage(cv::Mat &image, std::vector< std::v
     hypothesis = dots_hypothesis_distorted[index];
 
     // Draw a line between each trio of dot
-    for (int i = 1; i < hypothesis.size(); i++){
-      cv::line(image, hypothesis[i - 1], hypothesis[i], color, 2);
-    }
+    //for (int i = 1; i < hypothesis.size(); i++){
+    //  cv::line(image, hypothesis[i - 1], hypothesis[i], color, 2);
+   // }
 
     // Draw a circle around each dot
-    for (int i = 0; i < hypothesis.size(); i++){
-      cv::circle(image, hypothesis[i], 2, CV_RGB(255, 0, 0), 2);
-    }
+    //Orange dot
+    cv::circle(image, hypothesis[0], 2, CV_RGB(255, 0, 0), 2);
+    cv::circle(image, hypothesis[1], 2, CV_RGB(255, 0, 0), 2);
+    //Blue dot
+    cv::circle(image, hypothesis[2], 2, CV_RGB(0, 150, 255), 2);
+
+    // Radius circle
+    cv::circle(image, hypothesis[0], hypothesis[3].x, CV_RGB(0, 255, 0), 1);
 
 
     std::stringstream ss;
-    ss << index;
-    cv::putText(image, ss.str(), hypothesis[2], fontFace, fontScale, color);
+    ss << hypothesis[3].y;
+    cv::putText(image, ss.str(), hypothesis[0], fontFace, fontScale, color);
   }
 
   // Draw region of interest

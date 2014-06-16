@@ -137,7 +137,8 @@ void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
 
   publishDetectedLed(cv_ptr->image);
 
-  publishVisualizationImage(cv_ptr->image, image_msg);
+  //publishVisualizationImage(cv_ptr->image, image_msg);
+  publishVisualizationImage(marqueurDetector.m_visualisationImg, image_msg);
 }
 
 void DotFinder::publishDetectedLed(cv::Mat image){
@@ -147,15 +148,12 @@ void DotFinder::publishDetectedLed(cv::Mat image){
   std::vector< std::vector<cv::Point2f> > dots_hypothesis_undistorted;
 
   // Convert image to gray
-  cv::Mat bwImage;
-  cv::cvtColor(image , bwImage, CV_BGR2GRAY, 1);
-  LEDDetector::LedFilteringArDrone(bwImage, m_min_blob_area, m_max_blob_area, m_max_circular_distortion,
-              m_radius_ratio_tolerance, m_ratio_int_tolerance, m_hor_line_angle,
-              m_ratio_ellipse_min, m_ratio_ellipse_max,
-              m_pos_ratio, m_pos_ratio_tolerance,
-              m_acos_tolerance,
+  //cv::Mat bwImage;
+  //cv::cvtColor(image , bwImage, CV_BGR2GRAY, 1);
+  marqueurDetector.LedFilteringArDrone(image, m_min_radius, m_morph_type, m_dilation_size, m_erosion_size, m_min_blob_area, m_max_blob_area, m_ratio_int_tolerance, m_hor_line_angle,
               m_dots_hypothesis_distorted, dots_hypothesis_undistorted,
-              m_camera_matrix_K, m_camera_distortion_coeffs, m_camera_matrix_P, 0);
+              m_camera_matrix_K, m_camera_distortion_coeffs, m_camera_matrix_P,
+              m_maskToggle);
   
   if(dots_hypothesis_undistorted.size() == 0){
     ROS_WARN("No LED detected");
@@ -190,50 +188,16 @@ void DotFinder::publishDetectedLed(cv::Mat image){
 }
 
 void DotFinder::publishVisualizationImage(cv::Mat &image, const sensor_msgs::Image::ConstPtr& image_msg){
-   cv::Mat imgHSV;
-   //vector<cv::Mat> split_image(3);
-   //cv::split(image, split_image);// Split color channel
-   //cv::threshold(split_image[0], split_image[0], m_threshold, 255, cv::THRESH_TOZERO);
 
-   //cv::cvtColor(split_image[0] , colorImage, CV_GRAY2BGR); // Convert to color image for visualisation
-   cv::cvtColor(image , imgHSV, CV_BGR2HSV); // Convert to color image for visualisation
-
-
-   cv::Mat imgThresholded;
-
-   if(m_lowH < 0){// We split the lower and higher part of the interval than we fusion them
-       cv::Mat lowImgThresholded;
-       cv::Mat highImgThresholded;
-       cv::inRange(imgHSV, cv::Scalar(180 + m_lowH, m_lowS, m_lowV), cv::Scalar(179, m_highS, m_highV), lowImgThresholded); //Lower part threshold
-
-       cv::inRange(imgHSV, cv::Scalar(0, m_lowS, m_lowV), cv::Scalar(m_highH, m_highS, m_highV), highImgThresholded); //Higher part threshold
-
-       bitwise_or(lowImgThresholded,highImgThresholded, imgThresholded); //Fusion of the two range
-   }
-   else{
-       cv::inRange(imgHSV, cv::Scalar(m_lowH, m_lowS, m_lowV), cv::Scalar(m_highH, m_highS, m_highV), imgThresholded); //Threshold the image
-   }
-
-
-   //image.copyTo(image, imgThresholded);
-   //cv::bitwise_and(imgThresholded, imgThresholded, mask= imgThresholded)
-   //morphological opening (remove small objects from the foreground)
-   //cv::erode(imgThresholded, imgThresholded, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)) );
-   //cv::dilate( imgThresholded, imgThresholded, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)) );
-
-   //morphological closing (fill small holes in the foreground)
-   //cv::dilate( imgThresholded, imgThresholded, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)) );
-  //cv::erode(imgThresholded, imgThresholded, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)) );
-
-
-   Visualization::createVisualizationImage(imgThresholded, m_dots_hypothesis_distorted, m_region_of_interest);
-
-  cv::cvtColor(imgThresholded , imgThresholded, CV_GRAY2BGR); // Convert to color image for visualisation
+    cv::cvtColor(image , image, CV_GRAY2BGR);
+   if(m_infoToggle)
+       Visualization::createVisualizationImage(image, m_dots_hypothesis_distorted, m_region_of_interest);
+ // Convert to color image for visualisation
   // Publish image for visualization
   cv_bridge::CvImage visualized_image_msg;
   visualized_image_msg.header = image_msg->header;
   visualized_image_msg.encoding = sensor_msgs::image_encodings::BGR8; //BGR8
-  visualized_image_msg.image = imgThresholded;
+  visualized_image_msg.image = image;
 
   m_image_pub.publish(visualized_image_msg.toImageMsg());
 }
@@ -242,16 +206,19 @@ void DotFinder::publishVisualizationImage(cv::Mat &image, const sensor_msgs::Ima
  * The dynamic reconfigure callback function. This function updates the variable within the program whenever they are changed using dynamic reconfigure.
  */
 void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, uint32_t level){
-  m_highH = config.highH;
-  m_highS = config.highS;
-  m_highV = config.highV;
-  m_lowH = config.lowH;
-  m_lowS = config.lowS;
-  m_lowV = config.lowV;
+  marqueurDetector.setOrangeParameter(config.BlueHueHigh, config.BlueSatHigh, config.BlueValueHigh,
+                                      config.BlueHueLow,  config.BlueSatLow,  config.BlueValueLow);
+  marqueurDetector.setBlueParameter(config.OrangeHueHigh, config.OrangeSatHigh, config.OrangeValueHigh,
+                                    config.OrangeHueLow,  config.OrangeSatLow,  config.OrangeValueLow);
 
-  m_threshold = config.threshold;
+  m_maskToggle = config.maskToggle;
+  m_infoToggle = config.infoToggle;
 
-  m_gaussian_sigma = config.gaussian_sigma;
+  m_min_radius = config.min_radius;
+  m_dilation_size = config.dilation_size;
+  m_erosion_size = config.erosion_size;
+  m_morph_type = config.morph_type;
+
   m_min_blob_area = config.min_blob_area;
   m_max_blob_area = config.max_blob_area;
   m_max_circular_distortion = config.max_circular_distortion;

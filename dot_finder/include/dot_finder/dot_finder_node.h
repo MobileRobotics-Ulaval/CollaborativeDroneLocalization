@@ -46,6 +46,8 @@ private:
   string m_topic; //!< Camera node to subscribe
   ros::NodeHandle m_nodeHandler; //!< The ROS node handler
 
+  LEDDetector marqueurDetector;
+
   image_transport::Publisher m_image_pub; //!< The ROS image publisher that publishes the visualisation image
   ros::Publisher m_dot_hypothesis_pub; //!< The ROS image publisher that publishes the visualisation image
 
@@ -69,7 +71,13 @@ private:
 
   double m_highH, m_highS, m_highV;
   double m_lowH, m_lowS, m_lowV;
-  double m_threshold;
+
+  bool m_maskToggle;
+  bool m_infoToggle;
+
+  double m_dilation_size, m_erosion_size;
+  int  m_min_radius, m_morph_type;
+
   double m_gaussian_sigma;
   double m_min_blob_area;
   double m_max_blob_area;

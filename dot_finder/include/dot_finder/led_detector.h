@@ -25,7 +25,20 @@ typedef Eigen::Matrix<Eigen::Vector2d, Eigen::Dynamic, 1> List2DPoints;
 
 class LEDDetector
 {
+private:
+    double m_highHOrange, m_highSOrange, m_highVOrange, m_lowHOrange, m_lowSOrange, m_lowVOrange;
+    double m_highHBlue, m_highSBlue, m_highVBlue, m_lowHBlue, m_lowSBlue, m_lowVBlue;
 public:
+    cv::Mat m_visualisationImg;
+
+    void setOrangeParameter(const int pHighH, const int pHighS, const int pHighV,
+                            const int pLowH,  const int pLowS,  const int pLowV);
+    void setBlueParameter(const int pHighH, const int pHighS, const int pHighV,
+                          const int pLowH,  const int pLowS,  const int pLowV);
+    void colorThresholding(cv::Mat & image,
+                                        const int pHighH, const int pHighS, const int pHighV,
+                                        const int pLowH,  const int pLowS,  const int pLowV);
+    double distanceFromLineToPoint(const cv::Point2f p, const cv::Point2f lineA, const cv::Point2f lineB);
   /**
    * Detects the LEDs in the image and returns their positions in the rectified image and also draws circles around the detected LEDs in an output image.
    *
@@ -70,14 +83,11 @@ public:
    *                         0 & 0 & 1 & 0 \end{array} \right] \f$
    *
    */
-  static void LedFilteringArDrone(const cv::Mat &gaussian_image, const double &min_blob_area, const double &max_blob_area, const double &max_circular_distortion,
-               const double &radius_ratio_tolerance, const double &intensity_ratio_tolerance, const double &max_deviation_horizontal,
-               const double &min_ratio_ellipse, const double &max_ratio_ellipse,
-               const double &distance_ratio, const double &distance_ratio_tolerance,
-               const double &acos_tolerance,
+  void LedFilteringArDrone(const cv::Mat &image, const int &min_radius, const int &morph_type, const double &dilatation, const double &erosion, const double &min_blob_area, const double &max_blob_area,
+                           const double &intensity_ratio_tolerance, const double &max_deviation_horizontal,
                            std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
                            const cv::Mat &camera_matrix_K, const std::vector<double> &camera_distortion_coeffs,
-                           const cv::Mat &camera_matrix_P, int OutputFlag);
+                           const cv::Mat &camera_matrix_P, bool debug);
   /**
    * Calculates the region of interest (ROI) in the distorted image in which the points lie.
    *
