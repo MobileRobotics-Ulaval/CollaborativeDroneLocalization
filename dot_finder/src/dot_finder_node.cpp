@@ -150,7 +150,7 @@ void DotFinder::publishDetectedLed(cv::Mat image){
   // Convert image to gray
   //cv::Mat bwImage;
   //cv::cvtColor(image , bwImage, CV_BGR2GRAY, 1);
-  marqueurDetector.LedFilteringArDrone(image, m_min_radius, m_morph_type, m_dilation_size, m_erosion_size, m_min_blob_area, m_max_blob_area, m_ratio_int_tolerance, m_hor_line_angle,
+  marqueurDetector.LedFilteringArDrone(image, m_min_radius, m_morph_type, m_dilation_size, m_erosion_size, m_max_angle, m_max_angle_duo,
               m_dots_hypothesis_distorted, dots_hypothesis_undistorted,
               m_camera_matrix_K, m_camera_distortion_coeffs, m_camera_matrix_P,
               m_maskToggle);
@@ -214,6 +214,8 @@ void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, u
   m_maskToggle = config.maskToggle;
   m_infoToggle = config.infoToggle;
 
+  m_max_angle = config.max_angle * M_PI/180.0;
+  m_max_angle_duo = config.max_angle_between_trio * M_PI/180.0;
   m_min_radius = config.min_radius;
   m_dilation_size = config.dilation_size;
   m_erosion_size = config.erosion_size;

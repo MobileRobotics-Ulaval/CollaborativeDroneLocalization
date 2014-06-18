@@ -83,8 +83,7 @@ public:
    *                         0 & 0 & 1 & 0 \end{array} \right] \f$
    *
    */
-  void LedFilteringArDrone(const cv::Mat &image, const int &min_radius, const int &morph_type, const double &dilatation, const double &erosion, const double &min_blob_area, const double &max_blob_area,
-                           const double &intensity_ratio_tolerance, const double &max_deviation_horizontal,
+  void LedFilteringArDrone(const cv::Mat &image, const int &min_radius, const int &morph_type, const double &dilatation, const double &erosion, const double &max_angle, const double &max_angle_duo,
                            std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
                            const cv::Mat &camera_matrix_K, const std::vector<double> &camera_distortion_coeffs,
                            const cv::Mat &camera_matrix_P, bool debug);

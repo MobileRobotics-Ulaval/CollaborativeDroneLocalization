@@ -78,6 +78,8 @@ private:
   double m_dilation_size, m_erosion_size;
   int  m_min_radius, m_morph_type;
 
+  double  m_max_angle;
+  double  m_max_angle_duo;
   double m_gaussian_sigma;
   double m_min_blob_area;
   double m_max_blob_area;

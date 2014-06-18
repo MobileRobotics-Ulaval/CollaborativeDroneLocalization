@@ -76,19 +76,32 @@ void Visualization::createVisualizationImage(cv::Mat &image, std::vector< std::v
    // }
 
     // Draw a circle around each dot
-    //Orange dot
-    cv::circle(image, hypothesis[0], 2, CV_RGB(255, 0, 0), 2);
-    cv::circle(image, hypothesis[1], 2, CV_RGB(255, 0, 0), 2);
-    //Blue dot
-    cv::circle(image, hypothesis[2], 2, CV_RGB(0, 150, 255), 2);
+    if(false){
+        //Orange dot
+        cv::circle(image, hypothesis[0], 2, CV_RGB(255, 0, 0), 2);
+        cv::circle(image, hypothesis[1], 2, CV_RGB(255, 0, 0), 2);
+        //Blue dot
+        cv::circle(image, hypothesis[2], 2, CV_RGB(0, 150, 255), 2);
+        std::stringstream ss;
+        ss << hypothesis[3].y;
+        cv::putText(image, ss.str(), hypothesis[0], fontFace, fontScale, color);
+    }
+    else{
+        cv::line(image, hypothesis[0], hypothesis[1], CV_RGB(255, 0, 0), 1);
+        std::stringstream ss;
+        ss << hypothesis[3].y;
+        cv::putText(image, ss.str(), hypothesis[0], fontFace, fontScale, color);
+        std::stringstream ss2;
+        ss2 << hypothesis[4].y;
+        cv::putText(image, ss2.str(), hypothesis[1], fontFace, fontScale, color);
+
+    }
 
     // Radius circle
-    //cv::circle(image, hypothesis[0], hypothesis[3].x, CV_RGB(0, 255, 0), 1);
+    //cv::circle(image, hypothesis[0], hypothesis[3].y, CV_RGB(0, 255, 0), 1);
+    //cv::circle(image, hypothesis[1], hypothesis[4].x, CV_RGB(0, 255, 0), 1);
 
 
-    std::stringstream ss;
-    ss << hypothesis[3].y;
-    cv::putText(image, ss.str(), hypothesis[0], fontFace, fontScale, color);
   }
 
   // Draw region of interest
