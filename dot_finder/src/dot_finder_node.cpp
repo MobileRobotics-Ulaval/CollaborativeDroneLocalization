@@ -142,7 +142,7 @@ void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
 }
 
 void DotFinder::publishDetectedLed(cv::Mat image){
-  m_region_of_interest = cv::Rect(0, 0, image.cols, image.rows);
+  //m_region_of_interest = cv::Rect(0, 0, image.cols, image.rows);
 
     // Do detection of LEDs in image
   std::vector< std::vector<cv::Point2f> > dots_hypothesis_undistorted;
@@ -151,8 +151,8 @@ void DotFinder::publishDetectedLed(cv::Mat image){
   //cv::Mat bwImage;
   //cv::cvtColor(image , bwImage, CV_BGR2GRAY, 1);
   marqueurDetector.LedFilteringArDrone(image, m_min_radius, m_morph_type, m_dilation_size, m_erosion_size, m_max_angle, m_max_angle_duo,
-              m_dots_hypothesis_distorted, dots_hypothesis_undistorted,
-              m_camera_matrix_K, m_camera_distortion_coeffs, m_camera_matrix_P,
+              m_trio_distorted, m_dots_hypothesis_distorted, dots_hypothesis_undistorted,
+              m_camera_matrix_K, m_camera_distortion_coeffs, m_camera_matrix_P, m_region_of_interest,
               m_maskToggle);
   
   if(dots_hypothesis_undistorted.size() == 0){
@@ -189,10 +189,10 @@ void DotFinder::publishDetectedLed(cv::Mat image){
 
 void DotFinder::publishVisualizationImage(cv::Mat &image, const sensor_msgs::Image::ConstPtr& image_msg){
 
-    cv::cvtColor(image , image, CV_GRAY2BGR);
-   if(m_infoToggle)
-       Visualization::createVisualizationImage(image, m_dots_hypothesis_distorted, m_region_of_interest);
- // Convert to color image for visualisation
+  cv::cvtColor(image , image, CV_GRAY2BGR);
+  if(m_infoToggle)
+       Visualization::createVisualizationImage(image, m_dots_hypothesis_distorted, m_trio_distorted, m_region_of_interest, m_duoToggle, m_trioToggle);
+  // Convert to color image for visualisation
   // Publish image for visualization
   cv_bridge::CvImage visualized_image_msg;
   visualized_image_msg.header = image_msg->header;
@@ -214,25 +214,23 @@ void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, u
   m_maskToggle = config.maskToggle;
   m_infoToggle = config.infoToggle;
 
-  m_max_angle = config.max_angle * M_PI/180.0;
-  m_max_angle_duo = config.max_angle_between_trio * M_PI/180.0;
+  m_duoToggle  = config.duoToggle;
+  m_trioToggle = config.trioToggle;
+
+  if(config.toggleROI){
+     m_region_of_interest = cv::Rect(config.xROI, config.yROI, config.wROI, config.hROI);
+  }
+  else{
+     m_region_of_interest = cv::Rect(0, 0, 640, 360);
+  }
+
+
+  m_max_angle = config.maxAngle * M_PI/180.0;
+  m_max_angle_duo = config.maxAngleBetweenTrio * M_PI/180.0;
   m_min_radius = config.min_radius;
   m_dilation_size = config.dilation_size;
   m_erosion_size = config.erosion_size;
   m_morph_type = config.morph_type;
-
-  m_min_blob_area = config.min_blob_area;
-  m_max_blob_area = config.max_blob_area;
-  m_max_circular_distortion = config.max_circular_distortion;
-  m_ratio_ellipse_min = config.ratio_ellipse_min;
-  m_ratio_ellipse_max = config.ratio_ellipse_max;
-  m_pos_ratio = config.pos_ratio;
-  m_pos_ratio_tolerance = config.pos_ratio_tolerance;
-  m_acos_tolerance = config.line_angle_tolerance;
-  m_hor_line_angle = config.hor_line_angle;
-
-  m_radius_ratio_tolerance = config.radius_ratio_tolerance;
-  m_ratio_int_tolerance = config.ratio_int_tolerance;
 
   ROS_INFO("Parameters changed");
 }

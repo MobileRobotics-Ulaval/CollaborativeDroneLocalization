@@ -84,9 +84,9 @@ public:
    *
    */
   void LedFilteringArDrone(const cv::Mat &image, const int &min_radius, const int &morph_type, const double &dilatation, const double &erosion, const double &max_angle, const double &max_angle_duo,
-                           std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
+                            std::vector< std::vector<cv::Point2f> > & trio_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
                            const cv::Mat &camera_matrix_K, const std::vector<double> &camera_distortion_coeffs,
-                           const cv::Mat &camera_matrix_P, bool debug);
+                           const cv::Mat &camera_matrix_P, cv::Rect ROI, bool debug);
   /**
    * Calculates the region of interest (ROI) in the distorted image in which the points lie.
    *

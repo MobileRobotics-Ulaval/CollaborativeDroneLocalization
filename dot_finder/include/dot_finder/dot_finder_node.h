@@ -66,7 +66,8 @@ private:
   cv::Mat m_camera_matrix_K; //!< Variable to store the camera matrix as an OpenCV matrix
   cv::Mat m_camera_matrix_P; //!< Variable to store the projection matrix (as an OpenCV matrix) that projects points onto the rectified image plane.
   std::vector<double> m_camera_distortion_coeffs; //!< Variable to store the camera distortion parameters
-  std::vector< std::vector<cv::Point2f> > m_dots_hypothesis_distorted; //!< Dual dot with distortion (for visualisation)
+  std::vector< std::vector<cv::Point2f> > m_trio_distorted; //!< Trio dot with distortion (for visualisation)
+  std::vector< std::vector<cv::Point2f> > m_dots_hypothesis_distorted; //!< Dual marquer with distortion (for visualisation)
   Eigen::Matrix<double, 3, 4> m_camera_projection_matrix; //!< Stores the camera calibration matrix. This is the 3x4 projection matrix that projects the world points to the image coordinates stored in #image_points_.
 
   double m_highH, m_highS, m_highV;
@@ -74,6 +75,8 @@ private:
 
   bool m_maskToggle;
   bool m_infoToggle;
+  bool m_duoToggle;
+  bool m_trioToggle;
 
   double m_dilation_size, m_erosion_size;
   int  m_min_radius, m_morph_type;

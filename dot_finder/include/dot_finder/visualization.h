@@ -51,8 +51,10 @@ public:
                                                const cv::Mat camera_matrix_K,
                                                const std::vector<double> camera_distortion_coeffs);
 
-  static void createVisualizationImage(cv::Mat &image, std::vector< std::vector<cv::Point2f> > dots_hypothesis_distorted,
-                                             cv::Rect region_of_interest);
+  static void createVisualizationImage(cv::Mat &image, std::vector< std::vector<cv::Point2f> > dots_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > trio_distorted,
+                                             cv::Rect region_of_interest, const bool trio, const bool markerDuo);
+  static void drawMarkerPair(cv::Mat &image, std::vector< std::vector<cv::Point2f> > dots_hypothesis_distorted);
+  static void drawTrio(cv::Mat &image, std::vector< std::vector<cv::Point2f> > trio_distorted);
 
 };
 
