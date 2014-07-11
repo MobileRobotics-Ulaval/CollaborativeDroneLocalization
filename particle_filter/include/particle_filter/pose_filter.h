@@ -25,7 +25,8 @@ public:
                const double distanceRightLedRobotB, const double distanceLeftLedRobotB,
                const Eigen::Vector2d focalCam, const Eigen::Vector2d centerCam);
     double comparePoseABtoBA(const Eigen::Vector2d &pixelA1, const Eigen::Vector2d &pixelA2,
-                             const Eigen::Vector2d &pixelB1, const Eigen::Vector2d &pixelB2);
+                             const Eigen::Vector2d &pixelB1, const Eigen::Vector2d &pixelB2,
+                             Eigen::Vector3d &positionAB,  Eigen::Matrix3d &rotationAB);
 private:
     Eigen::Vector2d m_focalCam, m_centerCam;
     double m_rdA, m_ldA, m_rdB, m_ldB;

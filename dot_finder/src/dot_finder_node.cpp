@@ -141,6 +141,10 @@ void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
   publishVisualizationImage(marqueurDetector.m_visualisationImg, image_msg);
 }
 
+
+/**
+ * Detect, filter and publish markers.
+ */
 void DotFinder::publishDetectedLed(cv::Mat image){
   //m_region_of_interest = cv::Rect(0, 0, image.cols, image.rows);
 
@@ -150,7 +154,7 @@ void DotFinder::publishDetectedLed(cv::Mat image){
   // Convert image to gray
   //cv::Mat bwImage;
   //cv::cvtColor(image , bwImage, CV_BGR2GRAY, 1);
-  marqueurDetector.LedFilteringArDrone(image, m_min_radius, m_morph_type, m_dilation_size, m_erosion_size, m_max_angle, m_max_angle_duo,
+  marqueurDetector.LedFilteringArDrone(image, m_min_radius, m_morph_type, m_dilation_size, m_erosion_size, m_max_angle, m_max_angle_duo, m_max_norm_on_dist,
               m_trio_distorted, m_dots_hypothesis_distorted, dots_hypothesis_undistorted,
               m_camera_matrix_K, m_camera_distortion_coeffs, m_camera_matrix_P, m_region_of_interest,
               m_maskToggle);
@@ -170,8 +174,8 @@ void DotFinder::publishDetectedLed(cv::Mat image){
     duoDot_msg_to_publish.leftDot.push_back(position_in_image);
 
     //Right dot
-    position_in_image.x = dots_hypothesis_undistorted[i].back().x;
-    position_in_image.y = dots_hypothesis_undistorted[i].back().y;
+    position_in_image.x = dots_hypothesis_undistorted[i][1].x;
+    position_in_image.y = dots_hypothesis_undistorted[i][1].y;
     duoDot_msg_to_publish.rightDot.push_back(position_in_image);
   }
 
@@ -187,6 +191,9 @@ void DotFinder::publishDetectedLed(cv::Mat image){
   
 }
 
+/**
+ * The visualization creator and publisher.
+ */
 void DotFinder::publishVisualizationImage(cv::Mat &image, const sensor_msgs::Image::ConstPtr& image_msg){
 
   cv::cvtColor(image , image, CV_GRAY2BGR);
@@ -224,7 +231,7 @@ void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, u
      m_region_of_interest = cv::Rect(0, 0, 640, 360);
   }
 
-
+  m_max_norm_on_dist = config.maxNormOnDist;
   m_max_angle = config.maxAngle * M_PI/180.0;
   m_max_angle_duo = config.maxAngleBetweenTrio * M_PI/180.0;
   m_min_radius = config.min_radius;
@@ -239,7 +246,7 @@ void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, u
 
 int main(int argc, char* argv[])
 {
-  ros::init(argc, argv, "dot_finder");
+  ros::init(argc, argv, "dot_finder", ros::init_options::AnonymousName);
 
   dot_finder::DotFinder dot_finder_node;
   ros::spin();

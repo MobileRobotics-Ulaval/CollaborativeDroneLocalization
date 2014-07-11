@@ -43,10 +43,10 @@ void Visualization::projectOrientationVectorsOnImage(cv::Mat &image, const std::
 void Visualization::createVisualizationImage(cv::Mat &image, std::vector< std::vector<cv::Point2f> > dots_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > trio_distorted,
                                              cv::Rect region_of_interest, const bool markerDuo, const bool trio)
 {
-    if(markerDuo)
-        drawMarkerPair(image, dots_hypothesis_distorted);
     if(trio)
         drawTrio(image, trio_distorted);
+    if(markerDuo)
+        drawMarkerPair(image, dots_hypothesis_distorted);
 
     // Draw region of interest
     cv::rectangle(image, region_of_interest, CV_RGB(0, 0, 255), 2);

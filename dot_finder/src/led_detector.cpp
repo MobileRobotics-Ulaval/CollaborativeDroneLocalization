@@ -49,13 +49,19 @@ void LEDDetector::colorThresholding(cv::Mat & pImage,
     cv::Mat imgThresholded;
 
     if(pLowH > pHighH){// If the interval is in the around zero, we split the lower and higher part of the interval than we fusion them
+        // We could also take the interval between the high and low and subtracts it to a white img
         cv::Mat lowImgThresholded;
         cv::Mat highImgThresholded;
+        //cv::cvSet(whiteImg, CV_RGB(0,0,0));
+        //cv::inRange(imgHSV, cv::Scalar(pHighH, pLowS, pLowV), cv::Scalar(pLowH, pHighS, pHighV), lowImgThresholded);
+        //imgThresholded = whiteImg - lowImgThresholded;
         cv::inRange(imgHSV, cv::Scalar(pLowH, pLowS, pLowV), cv::Scalar(179, pHighS, pHighV), lowImgThresholded); //Lower part threshold
 
         cv::inRange(imgHSV, cv::Scalar(0, pLowS, pLowV), cv::Scalar(pHighH, pHighS, pHighV), highImgThresholded); //Higher part threshold
 
-        bitwise_or(lowImgThresholded, highImgThresholded, imgThresholded); //Fusion of the two range
+        //bitwise_or(lowImgThresholded, highImgThresholded, imgThresholded); //Fusion of the two range
+        imgThresholded = lowImgThresholded + highImgThresholded; //Fusion of the two range
+
     }
     else{
         cv::inRange(imgHSV, cv::Scalar(pLowH, pLowS, pLowV), cv::Scalar(pHighH, pHighS, pHighV), imgThresholded); //Threshold the image
@@ -64,13 +70,15 @@ void LEDDetector::colorThresholding(cv::Mat & pImage,
 }
 
 void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radius, const int &morph_type, const double &dilatation, const double &erosion, const double &max_angle,
-                                      const double &max_angle_duo, std::vector< std::vector<cv::Point2f> > & trio_distorted,
+                                      const double &max_angle_duo, const double max_norm_on_dist,
+                                      std::vector< std::vector<cv::Point2f> > & trio_distorted,
                                       std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
                                       const cv::Mat &camera_matrix_K, const std::vector<double> &camera_distortion_coeffs,
                                       const cv::Mat &camera_matrix_P, cv::Rect ROI, bool debug) {
 
     //cv::Rect ROI = cv::Rect(0, 0, image.cols, image.rows);
 
+    // If the ROI is bigger than the image, we resize it
     if(ROI.x + ROI.width > image.cols)
         ROI = cv::Rect(ROI.x, ROI.y, image.cols - ROI.x, ROI.height);
     if(ROI.y + ROI.height > image.rows)
@@ -78,14 +86,19 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
 
     cv::Mat orangeMask = image.clone();
     cv::Mat blueMask = image.clone();
-    //cv::Mat greenMask = image.clone();
+    //cv::Mat pouliotMask = image.clone();
+
     // Orange Thresholding
     colorThresholding(orangeMask, m_highHOrange, m_highSOrange, m_highVOrange,
-                   m_lowHOrange, m_lowSOrange, m_lowVOrange);
+                                  m_lowHOrange,  m_lowSOrange,  m_lowVOrange);
 
     // Blue Thresholding
     colorThresholding(blueMask, m_highHBlue, m_highSBlue, m_highVBlue,
-                    m_lowHBlue, m_lowSBlue, m_lowVBlue);
+                                m_lowHBlue,  m_lowSBlue,  m_lowVBlue);
+    // Blue Thresholding
+    /*colorThresholding(pouliotMask, 130, 55, 95,
+                                120,  20,  65);
+    blueMask = blueMask - pouliotMask - orangeMask;*/
 
     int dilation_type;
     if( morph_type == 0 ){      dilation_type = cv::MORPH_RECT; }
@@ -142,26 +155,6 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
         double area = cv::contourArea(contours[i]); // Blob area
 
         if (area < 0.01){ continue; }
-        /*
-        double width_height_distortion = std::abs(1 - std::min((double)rect.width / (double)rect.height, (double)rect.height / (double)rect.width));
-        double circular_distortion1 = std::abs(1 - (area / (CV_PI * pow(rect.width / 2, 2.0))));
-        double circular_distortion2 = std::abs(1 - (area / (CV_PI * pow(rect.height / 2, 2.0))));
-
-        cv::RotatedRect minEllipse;
-        double RatioEllipse = 1.0;
-        if (contours[i].size()>4) {
-            minEllipse = cv::fitEllipse(cv::Mat(contours[i]));
-            RatioEllipse = float(minEllipse.boundingRect().width+1.0)/float(minEllipse.boundingRect().height+1.0);  // the 0.5 is to increase immunity to small circles.
-        }
-        int x, y;
-        double total_intensity=0.0,avg_intensity;
-        for (x = rect.x; x<rect.x+rect.width; x++) {
-            for (y = rect.y; y<rect.y+rect.height; y++) {
-                cv::Scalar intensity = orangeMask.at<uchar>(y, x);
-                total_intensity+= float(intensity.val[0]);
-            }
-        }
-        avg_intensity = total_intensity/area;*/
 
         if (true){
             // We want to output some data for further analysis in matlab.
@@ -172,16 +165,9 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
         }
 
 
-        // We will prune the blobs set based on appearance. These were found using matlab.
-        //if ((area < max_blob_area) && (circular_distortion1 < max_circular_distortion) && (circular_distortion2 < max_circular_distortion)
-        //      && (RatioEllipse < max_ratio_ellipse) && (RatioEllipse > min_ratio_ellipse )) {
-        // These will be used further down the filtering pipeline
-        // Ideally we would sort in order of intensity, and do a n choose k on a sliding window of that ranked intensity.
         KeptArea.push_back(area);
         KeptContoursPosition.push_back(mc);
         KeptRadius.push_back(radius);
-        //KeptAvgIntensity.push_back(avg_intensity);
-        // }
     }
     printf("\n");
 
@@ -212,19 +198,18 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
     // ================= TRIO EXTRACTION =================
     vector<int> trio;
     vector< vector<int> > trioStack;
-    vector<int> toRemove;
     double length, lengthSquare, radiusI, radiusJ, radiusISquare, radiusJSquare;
     cv::Point2f p0, p;
     for(int i = 0; i < KeptContoursPosition.size(); i++){ // First orange dot
 
-        radiusI = KeptRadius[i] * 8;
+        radiusI = KeptRadius[i] * 7;
         if(radiusI < min_radius){ radiusI = min_radius; }
         radiusISquare = radiusI * radiusI;
 
         p0 = KeptContoursPosition[i];
         for(int j = i + 1; j < KeptContoursPosition.size(); j++){ // Second orange dot
 
-            radiusJ = KeptRadius[j] * 8;
+            radiusJ = KeptRadius[j] * 7;
             if(radiusJ < min_radius){ radiusJ = min_radius; }
             radiusJSquare = radiusJ * radiusJ;
 
@@ -237,13 +222,17 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
             //double minArea = std::min(KeptArea[i], KeptArea[j]);
             double maxArea = std::max(radiusI, radiusJ);
             double minArea = std::min(radiusI, radiusJ);
-            /*printf("%3d vs. %3d => n=%6.2f rI=%6.2f rJ=%6.2f  minArea=%3.1f maxArea=%3.1f min/max=%1.3f\n", i+1, j+1, length, radiusI, radiusJ,
+            printf("%3d vs. %3d => n=%6.2f rI=%6.2f rJ=%6.2f  minArea=%3.1f maxArea=%3.1f min/max=%1.3f\n", i+1, j+1, length, radiusI, radiusJ,
                    minArea,
                    maxArea,
-                   minArea / maxArea);*/
+                   minArea / maxArea);
             if(minArea/maxArea < 0.3) continue;
 
-            if(atan(abs(p.y/p.x)) < max_angle) continue;
+            if(atan(abs(p.y/p.x)) < max_angle){
+                printf("\t angle remove \n");
+                continue;
+            }
+
 
             // Find the closest blue dot
             int bDotId;
@@ -286,17 +275,20 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
                 trio.clear();
                 trio.push_back(i);      // First Orange dot
                 trio.push_back(j);      // Second Orange dot
-                //trio.push_back(bDotId); // Blue dot
-                //trio.push_back(1); // debug
                 trioStack.push_back(trio);
+            }
+            else{
+                printf("\t blue remove \n");
             }
         }
     }
 
+    printf("\n");
     cv::Point2f topI, botI, topJ, botJ;
     cv::Point2f topV, botV, centerV;
     cv::Point2f centerI, centerJ;
     double topAngle, botAngle, centerAngle;
+    // Each trio is pair with another one
     for(int i = 0; i < trioStack.size(); i++){
         if(KeptContoursPosition[trioStack[i][0]].y  < KeptContoursPosition[trioStack[i][1]].y){
             topI = KeptContoursPosition[trioStack[i][0]];
@@ -319,94 +311,62 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
             centerI = (topI - botI) * 0.5 + botI;
             centerJ = (topJ - botJ) * 0.5 + botJ;
             centerV = centerI - centerJ;
-            centerAngle = atan(centerV.y/ centerV.x);
+            centerAngle = atan(abs(centerV.y / centerV.x)) - atan(abs((topI - botI).x / (topI - botI).y));
 
-            if(abs(centerAngle) > max_angle_duo) continue;
 
-            double distance =  sqrt(centerV.x * centerV.x + centerV.y * centerV.y);
+            if(centerAngle > max_angle_duo){ continue;}
+
+            double distance =  norm(centerV);
             double radiusI = KeptRadius[trioStack[i][0]] + KeptRadius[trioStack[i][1]];
             double radiusJ = KeptRadius[trioStack[j][0]] + KeptRadius[trioStack[j][1]];
-            printf("%3d vs. %3d => ctrA=%6.2f radI/dist=%6.2f radJ/dist=%6.2f \n",
-                   trioStack[i][0] +1, trioStack[j][0] +1,
+
+            // This is the most effective filter
+            double normOnDist = (norm(topI - botI) + norm(topJ - botJ))*0.5/distance;
+            if(normOnDist > max_norm_on_dist ){  printf("\t norm reject=> %6.2f\n", normOnDist); continue;}
+            printf("%3d-%3d vs %3d-%3d => ctrA=%6.2f radI/dist=%6.2f radJ/dist=%6.2f min/max=%6.2f  normOnDist=%6.2f \n",
+                   trioStack[i][0] +1, trioStack[i][1] +1,
+                   trioStack[j][0] +1, trioStack[i][1] +1,
                    centerAngle*180/M_PI,
-                   radiusI/distance, radiusJ/distance);
-            if(radiusI/distance < 0.03 || radiusJ/distance < 0.03 ){continue;}
+                   radiusI/distance, radiusJ/distance,
+                   min(radiusI,radiusJ)/max(radiusI,radiusJ),
+                   normOnDist);
+
+            if(min(radiusI,radiusJ)/max(radiusI,radiusJ) < 0.55){ printf("\t min/max Radius\n"); continue;}
+
+            double ratioLenght = min(norm(topI - botI),norm(topJ - botJ))/max(norm(topI - botI),norm(topJ - botJ));
+
+            if(ratioLenght < 0.66){ printf("\t ratioLength (%6.2f)\n ", ratioLenght); continue;}
+            if(radiusI/distance < 0.06 || radiusJ/distance < 0.06 ){ printf("\t min/max (too small)\n"); continue;}
+            if(radiusI/distance > 0.25 || radiusJ/distance > 0.25 ){ printf("\t min/max (too big)\n"); continue;}
+
 
             detection_centers.clear();
-            detection_centers.push_back(centerI); // First Orange dot
-            detection_centers.push_back(centerJ); // Second Orange dot
+            //detection_centers.push_back(centerI); // First Orange dot
+            //detection_centers.push_back(centerJ); // Second Orange dot
+            if(botI.x < botJ.x){
+                detection_centers.push_back(botI); // Left Orange dot
+                detection_centers.push_back(botJ); // Right Orange dot
+            }
+            else{
+                detection_centers.push_back(botJ); // Left Orange dot
+                detection_centers.push_back(botI); // Right Orange dot
+            }
             detection_centers.push_back(topI);         // Blue dot
-            detection_centers.push_back(cv::Point2f(0, trioStack[i][0] +1));     // DEBUG FOR VISUALISATION
-            detection_centers.push_back(cv::Point2f(0,trioStack[j][0] +1));     // DEBUG FOR VISUALISATION
             dot_hypothesis_distorted.push_back(detection_centers);
         }
     }
     printf("Avant %3d Après %3d\n", trioStack.size(), dot_hypothesis_distorted.size());
 
-    /*
-    dot_hypothesis_distorted.clear();
-    // Let's remove the orange's dot that form a trio
-    for(int i = 0; i < trioStack.size(); i++){
-        trio = trioStack[i];
-        detection_centers.clear();
-        detection_centers.push_back(KeptContoursPosition[trio[0]]); // First Orange dot
-        detection_centers.push_back(KeptContoursPosition[trio[1]]); // Second Orange dot
-        detection_centers.push_back(blue_centers[trio[2]]);         // Blue dot
-        detection_centers.push_back(cv::Point2f(trio[3], trio[0]+1));     // DEBUG FOR VISUALISATION
-        dot_hypothesis_distorted.push_back(detection_centers);
 
-    }
-    */
-
-    /*
-    // Sorting of the dot id to remove
-    std::sort(toRemove.begin(), toRemove.end());
-    for(int i = toRemove.size() - 1; i >= 0; i--){
-
-        if(i == toRemove.size() - 1 || toRemove[i] != toRemove[i + 1]){
-            ROS_INFO("Debug %d", toRemove[i]);
-            KeptContoursPosition.erase(KeptContoursPosition.begin() + toRemove[i]);
-        }
-    }
-
-    // We have a array without any trio
-    // ================= DUO EXTRACTION =================
-    for(int i = 0; i < KeptContoursPosition.size(); i++){
-        int bDotId;
-
-        radiusI = KeptRadius[i] * 7;
-        if(radiusI < min_radius){ radiusI = min_radius; }
-        radiusISquare = radiusI * radiusI;
-
-        p0 = KeptContoursPosition[i];
-        for(int k = 0; k < blue_centers.size(); k++){
-            p = p0 - blue_centers[k];
-            lengthSquare =  p.x*p.x + p.y*p.y;
-            if(lengthSquare > radiusISquare) continue;
-
-            // Find the closest blue dot
-            double bestDist = -1;
-            if(bestDist == -1 || lengthSquare < bestDist){
-                bestDist = lengthSquare;
-                bDotId = k;
-            }
-        }
-
-        detection_centers.clear();
-        detection_centers.push_back(KeptContoursPosition[i]); // First Orange dot
-        detection_centers.push_back(KeptContoursPosition[i]); // Second Orange dot
-        detection_centers.push_back(blue_centers[bDotId]);         // Blue dot
-        detection_centers.push_back(cv::Point2f(0, i+1));     // DEBUG FOR VISUALISATION
-        dot_hypothesis_distorted.push_back(detection_centers);
-    }
-
-*/
-    /*
+    // Undistort the pointsima
+    dot_hypothesis_undistorted.clear();
+    for(int i = 0; i < dot_hypothesis_distorted.size(); i++){
         std::vector<cv::Point2f> undistorted_points;
-        cv::undistortPoints(detection_centers, undistorted_points, camera_matrix_K, camera_distortion_coeffs, cv::noArray(),
+        cv::undistortPoints(dot_hypothesis_distorted[i], undistorted_points, camera_matrix_K, camera_distortion_coeffs, cv::noArray(),
                             camera_matrix_P);
         dot_hypothesis_undistorted.push_back(undistorted_points);
-    */
+    }
+
 }
 
 double LEDDetector::distanceFromLineToPoint(const cv::Point2f p, const cv::Point2f lineA, const cv::Point2f lineB){

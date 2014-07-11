@@ -24,7 +24,7 @@ Eigen::Matrix4d MutualPoseEstimation::fromPoseToTransformMatrix(Eigen::Vector3d 
     return mat;
 }
 
-geometry_msgs::Pose MutualPoseEstimation::computePoseAndMessage(Eigen::Vector2d pixelA1, Eigen::Vector2d pixelA2, Eigen::Vector2d pixelB1, Eigen::Vector2d pixelB2,
+geometry_msgs::PoseStamped MutualPoseEstimation::computePoseAndMessage(Eigen::Vector2d pixelA1, Eigen::Vector2d pixelA2, Eigen::Vector2d pixelB1, Eigen::Vector2d pixelB2,
                                                           double rdA, double ldA, double rdB, double ldB,
 														  Eigen::Vector2d fCam, Eigen::Vector2d pp){
     Eigen::Vector3d position;
@@ -39,18 +39,44 @@ geometry_msgs::Pose MutualPoseEstimation::computePoseAndMessage(Eigen::Vector2d 
     return MutualPoseEstimation::generatePoseMessage(position, rotation);
 }
 
-geometry_msgs::Pose MutualPoseEstimation::generatePoseMessage(const Eigen::Vector3d &position, const Eigen::Matrix3d &rotation){
-	geometry_msgs::Pose estimated_position;
-    estimated_position.position.x = position[2];
-    estimated_position.position.y = position[0];
-    estimated_position.position.z = -position[1];
-    
-    Eigen::Quaterniond orientation = Eigen::Quaterniond(rotation);
+geometry_msgs::PoseStamped MutualPoseEstimation::generatePoseMessage(const Eigen::Vector3d &position, Eigen::Matrix3d &rotation){
+    geometry_msgs::PoseStamped estimated_position;
+    estimated_position.pose.position.x = position[0]; // z
+    estimated_position.pose.position.y = position[1];  // x
+    estimated_position.pose.position.z = position[2]; //-y
 
-    estimated_position.orientation.x = orientation.z();
-    estimated_position.orientation.y = orientation.x();
-    estimated_position.orientation.z = -orientation.y();
-    estimated_position.orientation.w = orientation.w();
+    //Eigen::Matrix3d invRot = rotation.inverse();
+    //rotation.col(0) = -1*rotation.col(0);
+    cout<<"Rotation: "<<rotation<<endl;
+    Eigen::Quaterniond q = Eigen::Quaterniond(rotation);
+
+    double pitch = atan2(2.0*(q.y()*q.z() + q.w()*q.x()), q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
+    double yaw = asin(-2.0*(q.x()*q.z() - q.w()*q.y()));
+    double roll = atan2(2.0*(q.x()*q.y() + q.w()*q.z()),  q.w()*q.w() + q.x()*q.x() - q.y()*q.y() - q.z()*q.z());
+    printf("[OLD] Yaw %6.2f Pitch %6.2f Roll %6.2f\n", yaw, pitch, roll);
+
+   Eigen::Matrix3d m;// y => z => x
+    // X Y Z = même output? (y et R inversé?)
+    m = Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitZ())//Z
+      * Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitY())//Y
+      * Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitZ());//Z
+    q = Eigen::Quaterniond(m);
+
+   // rotation.col(0) = -1*rotation.col(0);
+    //q = Eigen::Quaterniond(rotation);
+
+    pitch = atan2(2.0*(q.y()*q.z() + q.w()*q.x()), q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
+    yaw = asin(-2.0*(q.x()*q.z() - q.w()*q.y()));
+    roll = atan2(2.0*(q.x()*q.y() + q.w()*q.z()),  q.w()*q.w() + q.x()*q.x() - q.y()*q.y() - q.z()*q.z());
+    printf("[NEW] Yaw %6.2f Pitch %6.2f Roll %6.2f\n", yaw, pitch, roll);
+
+
+    estimated_position.pose.orientation.x = q.x();// z
+    estimated_position.pose.orientation.y = q.y();// x
+    estimated_position.pose.orientation.z = q.z();//-y
+    estimated_position.pose.orientation.w = q.w();// w
+    estimated_position.header.frame_id = "ardrone_base_frontcam";
+    //estimated_position.header.frame_id = "ardrone_base_link";
     return estimated_position;
 }
 
@@ -81,7 +107,8 @@ void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pi
                                                  const Eigen::Vector2d &fCamA, const Eigen::Vector2d &fCamB,
                                                  const double &rdA, const double &ldA, const double &rdB, const double &ldB,
                                                  Eigen::Vector3d & position, Eigen::Matrix3d & rotation){
-  /*cout<<"-Parameters-"<<endl;
+  /*
+  cout<<"-Parameters-"<<endl;
   cout<<"pixelA1:"<<pixelA1<<endl;
   cout<<"pixelA2:"<<pixelA2<<endl;
   cout<<"pixelB1:"<<pixelB1<<endl;

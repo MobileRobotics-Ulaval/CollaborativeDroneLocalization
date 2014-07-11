@@ -14,15 +14,16 @@ PoseFilter::PoseFilter(const double distanceRightLedRobotA, const double distanc
 }
 
 double PoseFilter::comparePoseABtoBA(const Eigen::Vector2d &pixelA1, const Eigen::Vector2d &pixelA2,
-                                     const Eigen::Vector2d &pixelB1, const Eigen::Vector2d &pixelB2){
+                                     const Eigen::Vector2d &pixelB1, const Eigen::Vector2d &pixelB2,
+                                     Eigen::Vector3d &positionAB,  Eigen::Matrix3d &rotationAB){
 
-    Eigen::Matrix3d rotation;
+    Eigen::Matrix3d rotationBA;
     double distanceError;
-    Eigen::Vector3d positionAB, positionBA;
+    Eigen::Vector3d positionBA;
     MutualPoseEstimation::compute3DMutualLocalisation(pixelA1, pixelA2,
                                                 pixelB1, pixelB2,
-                                                m_centerCam, m_centerCam, m_focalCam, m_focalCam,
-                                                m_rdA, m_ldA, m_rdB, m_ldB, positionAB, rotation);
+                                                m_focalCam, m_focalCam, m_centerCam, m_centerCam,
+                                                m_rdA, m_ldA, m_rdB, m_ldB, positionAB, rotationAB);
     // Convert Pose to a 4x4 transformation matrix
     //transformationAOnB = MutualPoseEstimation::fromPoseToTransformMatrix(positionAB, rotation);
     //cout << "transformationAOnB:\n" <<  transformationAOnB <<endl;
@@ -30,8 +31,8 @@ double PoseFilter::comparePoseABtoBA(const Eigen::Vector2d &pixelA1, const Eigen
 
     MutualPoseEstimation::compute3DMutualLocalisation(pixelB1, pixelB2,
                                                 pixelA1, pixelA2,
-                                                m_centerCam, m_centerCam, m_focalCam, m_focalCam,
-                                                m_rdA, m_ldA, m_rdB, m_ldB, positionBA, rotation);
+                                                m_focalCam, m_focalCam, m_centerCam, m_centerCam,
+                                                m_rdA, m_ldA, m_rdB, m_ldB, positionBA, rotationBA);
    distanceError = positionAB.norm() - positionBA.norm();
     return distanceError;
 }

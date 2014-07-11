@@ -32,10 +32,11 @@ private:
     static const double m_max_speed = 0.5;
     static const double m_kp = 0.75;
     static const double m_kd = 0.75;
-    bool m_buttonA, m_buttonB, m_buttonX, m_buttonR1, m_buttonR2;
+    int m_button_deadman_switch;
+    bool m_buttonA, m_buttonB, m_buttonX, m_buttonL1, m_buttonR1, m_buttonR2;
     double m_axeLX, m_axeLY, m_axeRX, m_axeRY;
     sensor_msgs::Joy 		  m_joyState;	//!< Current joystick state
-	ardrone_autonomy::Navdata m_drone;  //!< Current drone state (velocity, momentum, etc.)
+    ardrone_autonomy::Navdata m_drone;  //!< Current drone state (velocity, momentum, etc.)
     bool m_joyInitiated;
     bool m_navInitiated;
 
@@ -43,13 +44,13 @@ private:
 	//!< Publishing / subscribing variable >!
 	ros::NodeHandle m_nodehandle;			//!< Ros nodehandler
 
-	ros::Publisher  m_pub_twist; 			//!< The twist publisher
-	ros::Publisher  m_pub_empty_reset; 		//!< Publisher for the reset state
-	ros::Publisher  m_pub_empty_land; 		//!< Publisher for the landing command
-	ros::Publisher  m_pub_empty_takeoff; 	//!< Publisher for the take off command
+    ros::Publisher  m_pub_twist; 			//!< The twist publisher
+    ros::Publisher  m_pub_empty_reset; 		//!< Publisher for the reset state
+    ros::Publisher  m_pub_empty_land; 		//!< Publisher for the landing command
+    ros::Publisher  m_pub_empty_takeoff; 	//!< Publisher for the take off command
 	ros::Publisher  m_pub_v3; 				//!< The speed control publisher
 	ros::Subscriber m_joy_sub; 				//!< Subscriber to the joystick
-	ros::Subscriber m_nav_sub; 				//!< Subscriber to the ARdrone state
+    ros::Subscriber m_nav_sub; 				//!< Subscriber to the ARdrone state
 
 	dynamic_reconfigure::Server<ardrone_pose_estimator::ardrone_pose_estimatorConfig> m_dr_server; 			//!< The dynamic reconfigure server
 	dynamic_reconfigure::Server<ardrone_pose_estimator::ardrone_pose_estimatorConfig>::CallbackType m_cb; 	//!< The dynamic reconfigure callback type
