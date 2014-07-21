@@ -110,7 +110,7 @@ void DroneNav::getDroneState(int &tickCount,  int maxCount)
 
     if(tickCount == maxCount)
     {
-        const char *states[] = {"Unknown", "Initiated", "Landed", "Flying", "Hovering", "test", "6=impossible", "Flying"};
+        const char *states[] = {"Unknown", "Initiated", "Landed", "Flying", "Hovering", "Test?", "Take Off", "Flying", "Landing", "Looping?"};
 
         ROS_INFO("Battery = %g/100 state = %s", this->droneData.batteryPercent, states[this->droneData.state]);
         tickCount = 0;
