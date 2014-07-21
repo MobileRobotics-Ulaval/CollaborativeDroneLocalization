@@ -1,0 +1,9 @@
+- other:
+    local-name: /usr/local/share/ros
+- other:
+    local-name: /usr/local/share
+- other:
+    local-name: /usr/local/stacks
+- setup-file:
+    local-name: /usr/local/setup.sh
+

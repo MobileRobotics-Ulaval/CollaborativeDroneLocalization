@@ -1,0 +1,19 @@
+<package>
+  <description brief="dronenav">
+
+     dronenav
+
+  </description>
+  <author>Olivier</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/dronenav</url>
+  <depend package="std_msgs"/>
+  <depend package="geometry_msgs"/>
+  <depend package="ardrone_autonomy"/>
+  <depend package="tf"/>
+  <depend package="roscpp"/>
+
+</package>
+
+
