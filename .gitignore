@@ -11,3 +11,4 @@ build
 bin
 CMakeFiles
 *.bag
+CMakeLists.txt
