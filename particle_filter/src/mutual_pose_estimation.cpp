@@ -108,10 +108,10 @@ visualization_msgs::Marker MutualPoseEstimation::generateMarkerMessage(const Eig
                * rotation
                * Eigen::AngleAxisd(M_PI*0.5, Eigen::Vector3d::UnitX()).matrix().transpose()
                * Eigen::AngleAxisd(M_PI*0.5, Eigen::Vector3d::UnitY()).matrix().transpose()
-               * Eigen::AngleAxisd(-M_PI*0.5, Eigen::Vector3d::UnitZ()).matrix().transpose();*/
+               * Eigen::AngleAxisd(-M_PI*0.5, Eigen::Vector3d::UnitZ()).matrix().transpose();* Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()).matrix().transpose()*/
     rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ())
                * rotation
-               * Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()).matrix().transpose();
+               ;
     // Matrix=>EulerXYZ (http://www.soi.city.ac.uk/~sbbh653/publications/euler.pdf)
     if(abs(rotation(2,0)) != 1){
         yaw   = -asin(rotation(2,1));

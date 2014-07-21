@@ -30,16 +30,16 @@ private:
 
     void waitingInitiation(ros::Rate loopRate);
     void getDroneState(int &tickCount, int maxCount);
-    void takeoffObserver(ros::Rate loopRate, std_msgs::Empty emptyMsg);
-    void landingObserver(ros::Rate loopRate, std_msgs::Empty emptyMsg);
-    void resetObserver(ros::Rate loopRate, std_msgs::Empty emptyMsg);
+    void takeoffObserver(ros::Rate loopRate);
+    void landingObserver(ros::Rate loopRate);
+    void resetObserver(ros::Rate loopRate);
     void movementObserver(ros::Rate loopRate);
     void flatTrimObserver();
     double altitudeObserver();
     void calibrateJoyAxis();
 
     ros::NodeHandle nodeHandle;
-    static constexpr double MAX_SPEED = 0.5;
+    static const double MAX_SPEED = 0.5;
     int deadManSwitch;
     bool joyInitiated;
     bool navInitiated;
