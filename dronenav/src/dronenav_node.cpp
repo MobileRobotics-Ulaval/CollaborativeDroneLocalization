@@ -31,7 +31,6 @@ DroneNav::DroneNav(ros::NodeHandle nodeHandle) : nodeHandle(nodeHandle)
 void DroneNav::loop()
 {
     ros::Rate loopRate(50);
-    std_msgs::Empty emptyMsg;
 
     this->waitingInitiation(loopRate);
 
@@ -42,9 +41,9 @@ void DroneNav::loop()
     {
         this->getDroneState(tickCount, maxCount);
 
-        this->takeoffObserver(loopRate, emptyMsg);
-        this->landingObserver(loopRate, emptyMsg);
-        this->resetObserver(loopRate, emptyMsg);
+        this->takeoffObserver(loopRate);
+        this->landingObserver(loopRate);
+        this->resetObserver(loopRate);
         this->movementObserver(loopRate);
         this->flatTrimObserver();
     }
@@ -123,13 +122,13 @@ void DroneNav::getDroneState(int &tickCount,  int maxCount)
     }
 }
 
-void DroneNav::takeoffObserver(ros::Rate loopRate, std_msgs::Empty emptyMsg)
+void DroneNav::takeoffObserver(ros::Rate loopRate)
 {
     if(this->button["A"])
     {
         while(this->droneData.state == 2 && !this->button["X"])
         {
-            this->pubTakeoff.publish(emptyMsg);
+            this->pubTakeoff.publish(std_msgs::Empty());
             ROS_INFO("Battery = %g/100 : Launching drone", this->droneData.batteryPercent);
             ros::spinOnce();
             loopRate.sleep();
@@ -138,13 +137,13 @@ void DroneNav::takeoffObserver(ros::Rate loopRate, std_msgs::Empty emptyMsg)
     }
 }
 
-void DroneNav::landingObserver(ros::Rate loopRate, std_msgs::Empty emptyMsg)
+void DroneNav::landingObserver(ros::Rate loopRate)
 {
     if(this->button["B"])
     {
         while((this->droneData.state == 3 || this->droneData.state == 4) && !this->button["X"])
         {
-            this->pubLand.publish(emptyMsg);
+            this->pubLand.publish(std_msgs::Empty());
             ROS_INFO("Battery = %g/100 : Landing drone", this->droneData.batteryPercent);
             ros::spinOnce();
             loopRate.sleep();
@@ -152,13 +151,13 @@ void DroneNav::landingObserver(ros::Rate loopRate, std_msgs::Empty emptyMsg)
     }
 }
 
-void DroneNav::resetObserver(ros::Rate loopRate, std_msgs::Empty emptyMsg)
+void DroneNav::resetObserver(ros::Rate loopRate)
 {
     if(this->button["X"])
     {
         while(this->droneData.state == 0)
         {
-            this->pubReset.publish(emptyMsg);
+            this->pubReset.publish(std_msgs::Empty());
             ROS_INFO("Battery = %g/100 : Reseting drone", this->droneData.batteryPercent);
             ros::spinOnce();
             loopRate.sleep();
