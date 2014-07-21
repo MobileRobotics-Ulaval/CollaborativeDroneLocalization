@@ -1,5 +1,5 @@
-#ifndef DRONENAV_H
-#define DRONENAV_H
+#ifndef DRONE_NAV_H
+#define DRONE_NAV_H
 
 #include "ros/ros.h"
 
@@ -57,4 +57,4 @@ private:
 
 };
 
-#endif // DRONENAV_H
+#endif // DRONE_NAV_H
