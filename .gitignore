@@ -1,7 +1,6 @@
 *.sh
 *.zsh
 *.bash
-manifest.xml
 mainpage.dox
 Makefile
 CMakeCache.txt
@@ -12,3 +11,4 @@ bin
 CMakeFiles
 *.bag
 CMakeLists.txt
+manifest.xml
