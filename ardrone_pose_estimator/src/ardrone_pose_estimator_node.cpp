@@ -84,7 +84,7 @@ void ARPE::loop(){
 
     ROS_INFO("Waiting for initiation");
     //ros::spin();
-    while(!m_joyInitiated || !m_navInitiated){
+    while((!m_joyInitiated || !m_navInitiated) && ros::ok()){
         ros::spinOnce();
         loop_rate.sleep();
         continue;

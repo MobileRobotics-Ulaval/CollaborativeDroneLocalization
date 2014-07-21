@@ -13,10 +13,12 @@
   <build_depend>geometry_msgs</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>dot_finder</build_depend>
+  <build_depend>tf</build_depend>
   <run_depend>dynamic_reconfigure</run_depend>
   <run_depend>geometry_msgs</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>dot_finder</run_depend>
+  <run_depend>tf</run_depend>
   <export>
 
   </export>

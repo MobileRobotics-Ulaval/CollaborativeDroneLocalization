@@ -10,6 +10,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/Pose2D.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
@@ -42,6 +44,8 @@ private:
 	ros::Subscriber m_follower_dots_pub;
 
 	ros::Publisher m_pose_pub;
+    ros::Publisher m_marker_pub;
+    ros::Publisher m_marker_candidate_pub;
 
 	ros::NodeHandle m_nodeHandler;
 

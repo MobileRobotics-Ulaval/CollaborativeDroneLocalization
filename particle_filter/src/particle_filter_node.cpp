@@ -28,8 +28,10 @@ ParticleFilter::ParticleFilter(ros::NodeHandle n) :
   m_leader_dots_pub = m_nodeHandler.subscribe(topic_leader, 1, &ParticleFilter::leaderCallback, this);
   m_follower_dots_pub = m_nodeHandler.subscribe(topic_follower, 1, &ParticleFilter::followerCallback, this);
 
-  // Initialize detected leds publisher
+  // Initialize detected markers publisher
   m_pose_pub = m_nodeHandler.advertise<geometry_msgs::PoseStamped>(topic_poses, 1);
+  m_marker_candidate_pub = m_nodeHandler.advertise<visualization_msgs::MarkerArray>(topic_leader + "/pose_candidates", 1);
+  m_marker_pub = m_nodeHandler.advertise<visualization_msgs::Marker>(topic_leader + "/marker", 1);
 }
 void ParticleFilter::followerCallback(const dot_finder::DuoDot::ConstPtr& follower_msg){
 	if(!m_follower_initiation)
@@ -54,13 +56,16 @@ void ParticleFilter::leaderCallback(const dot_finder::DuoDot::ConstPtr& leader_m
         double best = -1;
         Eigen::Vector3d position, bestPosition;
         Eigen::Matrix3d rotation, bestRotation;
-        PoseFilter poseEvaluator( m_rdA, m_ldA, m_rdB, m_ldB, pp, fCam);
+        PoseFilter poseEvaluator( m_rdA, m_ldA, m_rdB, m_ldB, fCam, pp);
+        visualization_msgs::MarkerArray candidates_msg;
         for(int i = 0; i < leader_left_dot.size(); i++){
             for(int j = 0; j < follower_left_dot.size(); j++){
                 weight = poseEvaluator.comparePoseABtoBA(leader_left_dot[i], leader_right_dot[i],
                                                          follower_left_dot[j], follower_right_dot[j],
                                                          position, rotation);
                 cout << i << " on " << j << " Weight: " << weight << endl << "Pose: "<< position.transpose() << endl;
+
+                candidates_msg.markers.push_back(MutualPoseEstimation::generateMarkerMessage(position, rotation, 0.3));
                 if(best < 0 || (abs(weight) < best && abs(weight) > 0.00001)){
                     best = abs(weight);
                     bestPosition = position;
@@ -70,8 +75,10 @@ void ParticleFilter::leaderCallback(const dot_finder::DuoDot::ConstPtr& leader_m
         }
         if(best >= 0){
             printf("=> Best: %6.4f \nPose: ", best);
-            cout << bestPosition.transpose() << endl << endl;
-            m_pose_pub.publish(MutualPoseEstimation::generatePoseMessage(bestPosition, bestRotation));
+            cout << bestPosition.transpose() << endl<<"Distance: "<< bestPosition.norm() << endl << endl;
+            //m_pose_pub.publish(MutualPoseEstimation::generatePoseMessage(bestPosition, bestRotation));
+            m_marker_pub.publish(MutualPoseEstimation::generateMarkerMessage(bestPosition, bestRotation, 1.0));
+            m_marker_candidate_pub.publish(candidates_msg);
         }
     }
 }

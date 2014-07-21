@@ -25,6 +25,7 @@ catkin_package(
   dynamic_reconfigure 
   geometry_msgs 
   dot_finder
+  tf
   DEPENDS eigen
 )
 
@@ -38,6 +39,9 @@ include_directories(
 # make the executable
 add_executable(particle_filter
   cfg/ParticleFilter.cfg
+  mesh/quadrotor_4.dae
+  mesh/quadrotor_3.dae
+
 
   include/particle_filter/particle_filter_node.h 
   include/particle_filter/mutual_pose_estimation.h
@@ -51,7 +55,7 @@ add_executable(particle_filter
 # to build the executable we depend on other packets,
 # they need to be build beforehand, especially the messages
 add_dependencies(particle_filter ${${PROJECT_NAME}_EXPORTED_TARGETS})
-add_dependencies(particle_filter ${catkin_EXPORTED_TARGETS}  ${PROJECT_NAME}_gencf)
+add_dependencies(particle_filter ${catkin_EXPORTED_TARGETS}  tf ${PROJECT_NAME}_gencf)
 
 # link the executable to the necessary libs
 target_link_libraries(particle_filter
