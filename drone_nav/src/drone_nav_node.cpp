@@ -1,4 +1,4 @@
-#include "dronenav/dronenav_node.h"
+#include "drone_nav/drone_nav_node.h"
 
 using namespace std;
 
@@ -157,7 +157,6 @@ void DroneNav::resetObserver(ros::Rate loopRate)
     {
         while(this->droneData.state == 0)
         {
-
             this->pubReset.publish(std_msgs::Empty());
             ROS_INFO("Battery = %g/100 : Reseting drone", this->droneData.batteryPercent);
             ros::spinOnce();
