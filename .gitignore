@@ -1,0 +1,12 @@
+*.sh
+*.zsh
+*.bash
+manifest.xml
+mainpage.dox
+Makefile
+CMakeCache.txt
+CMakeLists.txt.user
+CMakeLists.txt.user.2.5pre1
+build
+bin
+CMakeFiles
