@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>dronenav</name>
+  <name>drone_nav</name>
   <version>0.0.0</version>
   <description>Pose estimator for a team of AR drone v2</description>
   <maintainer email="philippe.babin@gmail.comn">philippe babin</maintainer>
