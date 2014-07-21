@@ -39,7 +39,7 @@ private:
     void calibrateJoyAxis();
 
     ros::NodeHandle nodeHandle;
-    static constexpr double MAX_SPEED = 0.5;
+    static const double MAX_SPEED = 0.5;
     int deadManSwitch;
     bool joyInitiated;
     bool navInitiated;
