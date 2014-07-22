@@ -1,18 +1,19 @@
 /*
- * led_detector.cpp
+ * dot_detector.cpp
  *
- * Created on: July 29, 2013
- * Author: Karl Schwabe
+ *  Created on: Jun 15, 2014
+ * Author: Philippe Babin
+    Based on the work of Karl Schwabe
  */
 
 /**
- * \file led_detector.cpp
- * \brief File containing the function definitions required for detecting LEDs and visualising their detections and the pose of the tracked object.
+ * \file dot_detector.cpp
+ * \brief File containing the function definitions required for detecting markers and visualising their detections and the pose of the tracked object.
  *
  */
 
 #include "ros/ros.h"
-#include "dot_finder/led_detector.h"
+#include "dot_finder/dot_detector.h"
 
 using namespace std;
 namespace dot_finder
@@ -20,26 +21,41 @@ namespace dot_finder
 
 typedef Eigen::Matrix<Eigen::Vector2d, Eigen::Dynamic, 1> List2DPoints; //!< A dynamic column vector containing Vector2D elements. \see Vector2d
 
-void LEDDetector::setOrangeParameter(const int pHighH, const int pHighS, const int pHighV,
+void DotDetector::setOrangeParameter(const int pHighH, const int pHighS, const int pHighV,
                                      const int pLowH,  const int pLowS,  const int pLowV){
-    m_highHOrange = pHighH;
-    m_highSOrange = pHighS;
-    m_highVOrange = pHighV;
-    m_lowHOrange  = pLowH;
-    m_lowSOrange  = pLowS;
-    m_lowVOrange  = pLowV;
+    this->highHOrange = pHighH;
+    this->highSOrange = pHighS;
+    this->highVOrange = pHighV;
+    this->lowHOrange  = pLowH;
+    this->lowSOrange  = pLowS;
+    this->lowVOrange  = pLowV;
 }
-void LEDDetector::setBlueParameter(const int pHighH, const int pHighS, const int pHighV,
+void DotDetector::setBlueParameter(const int pHighH, const int pHighS, const int pHighV,
                                    const int pLowH,  const int pLowS,  const int pLowV){
-    m_highHBlue = pHighH;
-    m_highSBlue = pHighS;
-    m_highVBlue = pHighV;
-    m_lowHBlue  = pLowH;
-    m_lowSBlue  = pLowS;
-    m_lowVBlue  = pLowV;
+    this->highHBlue = pHighH;
+    this->highSBlue = pHighS;
+    this->highVBlue = pHighV;
+    this->lowHBlue  = pLowH;
+    this->lowSBlue  = pLowS;
+    this->lowVBlue  = pLowV;
 }
 
-void LEDDetector::colorThresholding(cv::Mat & pImage,
+void DotDetector::setDetectorParameter(const int pMin_radius, const int pMorph_type, const double pDilatation,
+                          const double pErosion, const double pMax_angle, const double pMax_angle_duo,
+                          const double pMax_norm_on_dist, const bool pMaskToggle){
+    this->min_radius = pMin_radius;
+    this->morph_type = pMorph_type;
+    this->dilatation = pDilatation;
+    this->erosion = pErosion;
+    this->max_angle = pMax_angle;
+    this->max_angle_duo = pMax_angle_duo;
+    this->max_norm_on_dist = pMax_norm_on_dist;
+    this->maskToggle = pMaskToggle;
+
+}
+
+
+void DotDetector::colorThresholding(cv::Mat & pImage,
                                     const int pHighH, const int pHighS, const int pHighV,
                                     const int pLowH,  const int pLowS,  const int pLowV){
     cv::Mat imgHSV;
@@ -69,12 +85,11 @@ void LEDDetector::colorThresholding(cv::Mat & pImage,
     pImage = imgThresholded;
 }
 
-void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radius, const int &morph_type, const double &dilatation, const double &erosion, const double &max_angle,
-                                      const double &max_angle_duo, const double max_norm_on_dist,
+void DotDetector::LedFilteringArDrone(const cv::Mat &image,
                                       std::vector< std::vector<cv::Point2f> > & trio_distorted,
                                       std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
                                       const cv::Mat &camera_matrix_K, const std::vector<double> &camera_distortion_coeffs,
-                                      const cv::Mat &camera_matrix_P, cv::Rect ROI, bool debug) {
+                                      const cv::Mat &camera_matrix_P, cv::Rect ROI) {
 
     //cv::Rect ROI = cv::Rect(0, 0, image.cols, image.rows);
 
@@ -89,12 +104,12 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
     //cv::Mat pouliotMask = image.clone();
 
     // Orange Thresholding
-    colorThresholding(orangeMask, m_highHOrange, m_highSOrange, m_highVOrange,
-                                  m_lowHOrange,  m_lowSOrange,  m_lowVOrange);
+    colorThresholding(orangeMask, highHOrange, highSOrange, highVOrange,
+                                  lowHOrange,  lowSOrange,  lowVOrange);
 
     // Blue Thresholding
-    colorThresholding(blueMask, m_highHBlue, m_highSBlue, m_highVBlue,
-                                m_lowHBlue,  m_lowSBlue,  m_lowVBlue);
+    colorThresholding(blueMask, highHBlue, highSBlue, highVBlue,
+                                lowHBlue,  lowSBlue,  lowVBlue);
     // Blue Thresholding
     /*colorThresholding(pouliotMask, 130, 55, 95,
                                 120,  20,  65);
@@ -121,7 +136,7 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
     bitwise_and(blueMask, greenMask, greenMask); // We remove the green part from the blue mask
     */
 
-    if(debug)
+    if(maskToggle)
         m_visualisationImg = blueMask;
     else
         m_visualisationImg = orangeMask;
@@ -388,7 +403,7 @@ void LEDDetector::LedFilteringArDrone(const cv::Mat &image, const int &min_radiu
 
 }
 
-double LEDDetector::distanceFromLineToPoint(const cv::Point2f p, const cv::Point2f lineA, const cv::Point2f lineB){
+double DotDetector::distanceFromLineToPoint(const cv::Point2f p, const cv::Point2f lineA, const cv::Point2f lineB){
     double A, B, C;
     A = lineA.y - lineB.y;
     B = lineB.x - lineA.x;
@@ -396,74 +411,6 @@ double LEDDetector::distanceFromLineToPoint(const cv::Point2f p, const cv::Point
 
     return abs(A*p.x + B*p.y + C)/sqrt(A*A + B*B);
 
-}
-
-cv::Rect LEDDetector::determineROI(List2DPoints pixel_positions, cv::Size image_size, const int border_size,
-                                   const cv::Mat &camera_matrix_K, const std::vector<double> &camera_distortion_coeffs,
-                                   const cv::Mat &camera_matrix_P)
-{
-  double x_min = INFINITY;
-  double x_max = 0;
-  double y_min = INFINITY;
-  double y_max = 0;
-
-  for (unsigned i = 0; i < pixel_positions.size(); ++i)
-  {
-    if (pixel_positions(i)(0) < x_min)
-    {
-      x_min = pixel_positions(i)(0);
-    }
-    if (pixel_positions(i)(0) > x_max)
-    {
-      x_max = pixel_positions(i)(0);
-    }
-    if (pixel_positions(i)(1) < y_min)
-    {
-      y_min = pixel_positions(i)(1);
-    }
-    if (pixel_positions(i)(1) > y_max)
-    {
-      y_max = pixel_positions(i)(1);
-    }
-  }
-
-  std::vector<cv::Point2f> undistorted_points;
-
-  undistorted_points.push_back(cv::Point2f(x_min, y_min));
-  undistorted_points.push_back(cv::Point2f(x_max, y_max));
-
-  std::vector<cv::Point2f> distorted_points;
-
-  // Distort the points
-  //distortPoints(undistorted_points, distorted_points, camera_matrix_K, camera_distortion_coeffs, camera_matrix_P);
-
-  double x_min_dist = distorted_points[0].x;
-  double y_min_dist = distorted_points[0].y;
-  double x_max_dist = distorted_points[1].x;
-  double y_max_dist = distorted_points[1].y;
-
-  double x0 = std::max(0.0, std::min((double)image_size.width, x_min_dist - border_size));
-  double x1 = std::max(0.0, std::min((double)image_size.width, x_max_dist + border_size));
-  double y0 = std::max(0.0, std::min((double)image_size.height, y_min_dist - border_size));
-  double y1 = std::max(0.0, std::min((double)image_size.height, y_max_dist + border_size));
-
-  cv::Rect region_of_interest;
-
-  // if region of interest is too small, use entire image
-  // (this happens, e.g., if prediction is outside of the image)
-  if (x1 - x0 < 1 || y1 - y0 < 1)
-  {
-    region_of_interest = cv::Rect(0, 0, image_size.width, image_size.height);
-  }
-  else
-  {
-    region_of_interest.x = x0;
-    region_of_interest.y = y0;
-    region_of_interest.width = x1 - x0;
-    region_of_interest.height = y1 - y0;
-  }
-
-  return region_of_interest;
 }
 
 } // namespace

@@ -154,10 +154,9 @@ void DotFinder::publishDetectedLed(cv::Mat image){
   // Convert image to gray
   //cv::Mat bwImage;
   //cv::cvtColor(image , bwImage, CV_BGR2GRAY, 1);
-  marqueurDetector.LedFilteringArDrone(image, m_min_radius, m_morph_type, m_dilation_size, m_erosion_size, m_max_angle, m_max_angle_duo, m_max_norm_on_dist,
+  marqueurDetector.LedFilteringArDrone(image,
               m_trio_distorted, m_dots_hypothesis_distorted, dots_hypothesis_undistorted,
-              m_camera_matrix_K, m_camera_distortion_coeffs, m_camera_matrix_P, m_region_of_interest,
-              m_maskToggle);
+              m_camera_matrix_K, m_camera_distortion_coeffs, m_camera_matrix_P, m_region_of_interest);
   
   if(dots_hypothesis_undistorted.size() == 0){
     ROS_WARN("No LED detected");
@@ -213,17 +212,12 @@ void DotFinder::publishVisualizationImage(cv::Mat &image, const sensor_msgs::Ima
  * The dynamic reconfigure callback function. This function updates the variable within the program whenever they are changed using dynamic reconfigure.
  */
 void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, uint32_t level){
-  marqueurDetector.setOrangeParameter(config.OrangeHueHigh, config.OrangeSatHigh, config.OrangeValueHigh,
-                                      config.OrangeHueLow,  config.OrangeSatLow,  config.OrangeValueLow);
-  marqueurDetector.setBlueParameter(config.BlueHueHigh, config.BlueSatHigh, config.BlueValueHigh,
-                                    config.BlueHueLow,  config.BlueSatLow,  config.BlueValueLow);
-
-  m_maskToggle = config.maskToggle;
+  // Visualization Parameters
   m_infoToggle = config.infoToggle;
-
   m_duoToggle  = config.duoToggle;
   m_trioToggle = config.trioToggle;
 
+  // ROI Parameters
   if(config.toggleROI){
      m_region_of_interest = cv::Rect(config.xROI, config.yROI, config.wROI, config.hROI);
   }
@@ -231,13 +225,21 @@ void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, u
      m_region_of_interest = cv::Rect(0, 0, 640, 360);
   }
 
-  m_max_norm_on_dist = config.maxNormOnDist;
-  m_max_angle = config.maxAngle * M_PI/180.0;
-  m_max_angle_duo = config.maxAngleBetweenTrio * M_PI/180.0;
-  m_min_radius = config.min_radius;
-  m_dilation_size = config.dilation_size;
-  m_erosion_size = config.erosion_size;
-  m_morph_type = config.morph_type;
+  // Detector Parameters
+  marqueurDetector.setDetectorParameter(config.min_radius,
+                                        config.morph_type,
+                                        config.dilation_size,
+                                        config.erosion_size,
+                                        config.maxAngle * M_PI/180.0,
+                                        config.maxAngleBetweenTrio * M_PI/180.0,
+                                        config.maxNormOnDist,
+                                        config.maskToggle);
+
+  // Color detection parameter
+  marqueurDetector.setOrangeParameter(config.OrangeHueHigh, config.OrangeSatHigh, config.OrangeValueHigh,
+                                      config.OrangeHueLow,  config.OrangeSatLow,  config.OrangeValueLow);
+  marqueurDetector.setBlueParameter(config.BlueHueHigh, config.BlueSatHigh, config.BlueValueHigh,
+                                    config.BlueHueLow,  config.BlueSatLow,  config.BlueValueLow);
 
   ROS_INFO("Parameters changed");
 }

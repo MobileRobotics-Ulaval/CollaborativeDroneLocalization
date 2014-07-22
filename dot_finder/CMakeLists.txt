@@ -55,11 +55,11 @@ add_executable(dot_finder
   cfg/DotFinder.cfg
 
   include/dot_finder/dot_finder_node.h
-  include/dot_finder/led_detector.h
+  include/dot_finder/dot_detector.h
   include/dot_finder/visualization.h
 
   src/dot_finder_node.cpp 
-  src/led_detector.cpp 
+  src/dot_detector.cpp
   src/visualization.cpp
 )
 

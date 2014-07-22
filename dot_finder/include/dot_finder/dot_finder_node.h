@@ -34,7 +34,7 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <dot_finder/DotFinderConfig.h>
-#include <dot_finder/led_detector.h>
+#include <dot_finder/dot_detector.h>
 #include <dot_finder/visualization.h>
 
 #include <dot_finder/DuoDot.h>
@@ -46,7 +46,7 @@ private:
   string m_topic; //!< Camera node to subscribe
   ros::NodeHandle m_nodeHandler; //!< The ROS node handler
 
-  LEDDetector marqueurDetector;
+  DotDetector marqueurDetector;
 
   image_transport::Publisher m_image_pub; //!< The ROS image publisher that publishes the visualisation image
   ros::Publisher m_dot_hypothesis_pub; //!< The ROS image publisher that publishes the visualisation image
