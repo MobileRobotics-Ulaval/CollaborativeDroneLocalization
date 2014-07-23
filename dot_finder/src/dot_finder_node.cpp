@@ -28,11 +28,11 @@ DotFinder::DotFinder()
   // Generate the name of the publishing and subscribing topics
   string topic_image_raw, topic_camera_info, topic_dots, topic_image_with_detections;
   ros::param::get("~topic", m_topic);
-  topic_image_raw = m_topic + "/image_raw";
+  topic_image_raw = m_topic + "/ardrone/image_raw";
  // topic_camera_info = "cameraA/camera_info";
-  topic_camera_info = m_topic + "/camera_info";
+  topic_camera_info = m_topic + "/ardrone/camera_info";
   topic_dots = m_topic + "/dots";
-  topic_image_with_detections = m_topic + "/image_with_detections";
+  topic_image_with_detections = m_topic + "/ardrone/image_with_detections";
 
   // Set up a dynamic reconfigure server.
   // This should be done before reading parameter server values.
@@ -154,10 +154,12 @@ void DotFinder::publishDetectedLed(cv::Mat image){
   // Convert image to gray
   //cv::Mat bwImage;
   //cv::cvtColor(image , bwImage, CV_BGR2GRAY, 1);
+  //ROS_INFO("No");
   marqueurDetector.LedFilteringArDrone(image,
               m_trio_distorted, m_dots_hypothesis_distorted, dots_hypothesis_undistorted,
               m_camera_matrix_K, m_camera_distortion_coeffs, m_camera_matrix_P, m_region_of_interest);
-  
+
+  //ROS_INFO("Please");
   if(dots_hypothesis_undistorted.size() == 0){
     ROS_WARN("No LED detected");
     return;

@@ -8,15 +8,11 @@ ParticleFilter::ParticleFilter(ros::NodeHandle n) :
     m_nodeHandler(n),
     m_follower_initiation(false)
   {
-  string topic_leader, topic_follower, topic_poses;
+  string topic_leader, topic_follower;
   ros::param::get("~leader", topic_leader);
   ros::param::get("~follower", topic_follower);
 
   ROS_INFO("Subscribing to %s and %s", topic_leader.c_str(), topic_follower.c_str());
-
-  topic_leader = topic_leader + "/dots";
-  topic_follower = topic_follower + "/dots";
-  topic_poses = topic_leader + "/pose";
 
   // Set up a dynamic reconfigure server.
   // This should be done before reading parameter server values.
@@ -25,13 +21,13 @@ ParticleFilter::ParticleFilter(ros::NodeHandle n) :
   m_dr_server.setCallback(m_cb);
 
   // Initialize subscribers
-  m_leader_dots_pub = m_nodeHandler.subscribe(topic_leader, 1, &ParticleFilter::leaderCallback, this);
-  m_follower_dots_pub = m_nodeHandler.subscribe(topic_follower, 1, &ParticleFilter::followerCallback, this);
+  m_leader_dots_pub = m_nodeHandler.subscribe(topic_leader + "/dots", 1, &ParticleFilter::leaderCallback, this);
+  m_follower_dots_pub = m_nodeHandler.subscribe(topic_follower + "/dots", 1, &ParticleFilter::followerCallback, this);
 
   // Initialize detected markers publisher
-  m_pose_pub = m_nodeHandler.advertise<geometry_msgs::PoseStamped>(topic_poses, 1);
-  m_marker_candidate_pub = m_nodeHandler.advertise<visualization_msgs::MarkerArray>(topic_leader + "/pose_candidates", 1);
-  m_marker_pub = m_nodeHandler.advertise<visualization_msgs::Marker>(topic_leader + "/marker", 1);
+  m_pose_pub = m_nodeHandler.advertise<geometry_msgs::PoseStamped>(topic_follower + "/pose", 1);
+  m_marker_pub = m_nodeHandler.advertise<visualization_msgs::Marker>(topic_follower + "/marker", 1);
+  m_marker_candidate_pub = m_nodeHandler.advertise<visualization_msgs::MarkerArray>(topic_follower + "/pose_candidates", 1);
 }
 void ParticleFilter::followerCallback(const dot_finder::DuoDot::ConstPtr& follower_msg){
 	if(!m_follower_initiation)
@@ -76,7 +72,9 @@ void ParticleFilter::leaderCallback(const dot_finder::DuoDot::ConstPtr& leader_m
         if(best >= 0){
             printf("=> Best: %6.4f \nPose: ", best);
             cout << bestPosition.transpose() << endl<<"Distance: "<< bestPosition.norm() << endl << endl;
-            //m_pose_pub.publish(MutualPoseEstimation::generatePoseMessage(bestPosition, bestRotation));
+
+
+            m_pose_pub.publish(MutualPoseEstimation::generatePoseMessage(bestPosition, bestRotation));
             m_marker_pub.publish(MutualPoseEstimation::generateMarkerMessage(bestPosition, bestRotation, 1.0));
             m_marker_candidate_pub.publish(candidates_msg);
         }

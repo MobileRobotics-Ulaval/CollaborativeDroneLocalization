@@ -111,10 +111,6 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
     colorThresholding(blueMask, highHBlue, highSBlue, highVBlue,
                                 lowHBlue,  lowSBlue,  lowVBlue);
     // Blue Thresholding
-    /*colorThresholding(pouliotMask, 130, 55, 95,
-                                120,  20,  65);
-    blueMask = blueMask - pouliotMask - orangeMask;*/
-
     int dilation_type;
     if( morph_type == 0 ){      dilation_type = cv::MORPH_RECT; }
     else if( morph_type == 1 ){ dilation_type = cv::MORPH_CROSS; }
@@ -127,15 +123,6 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
     if(erosion > 0)
         cv::erode (orangeMask, orangeMask, cv::getStructuringElement(dilation_type, cv::Size( 2*erosion+1, 2*erosion+1),
                                                                                           cv::Point( erosion, erosion)) );
-
-    // Green Thresholding to remove
-    /*
-    colorThresholding(greenMask, 89, 139, 237,
-                                 69, 18,  93);
-    bitwise_not(greenMask, greenMask);
-    bitwise_and(blueMask, greenMask, greenMask); // We remove the green part from the blue mask
-    */
-
     if(maskToggle)
         m_visualisationImg = blueMask;
     else
@@ -145,9 +132,7 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
     std::vector<std::vector<cv::Point> > contours;
     cv::findContours(orangeMask(ROI).clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
-    // Vector for containing the detected points that will be undistorted later
-    // std::vector<cv::Point2f> distorted_points;
-    int DataIndex = 1; // For matlab-compatible output, when chasing the parameters.
+    int DataIndex = 1;
 
     std::vector<cv::Point2f> KeptContoursPosition;
     std::vector<cv::Point2f> detection_centers;
@@ -158,6 +143,10 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
     // Identify the blobs in the image
     for (unsigned i = 0; i < contours.size(); i++)
     {
+        double area = cv::contourArea(contours[i]); // Blob area
+
+        if (area < 0.01){ continue; } // If blob area too small
+
         cv::Rect rect = cv::boundingRect(contours[i]); // Bounding box
         //double radius = (rect.width + rect.height) / 4; // Average radius
         double radius = std::max(rect.width, rect.height) / 2.0;
@@ -167,9 +156,6 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
          mu = cv::moments(contours[i], false);
          cv::Point2f mc;
          mc = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00) + cv::Point2f(ROI.x, ROI.y);
-        double area = cv::contourArea(contours[i]); // Blob area
-
-        if (area < 0.01){ continue; }
 
         if (true){
             // We want to output some data for further analysis in matlab.
@@ -179,37 +165,11 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
             DataIndex++;
         }
 
-
         KeptArea.push_back(area);
         KeptContoursPosition.push_back(mc);
         KeptRadius.push_back(radius);
     }
     printf("\n");
-
-    /*
-    // Find the contours in the blue mask
-    cv::findContours(blueMask(ROI).clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-
-    std::vector<double> KeptAreaBlue,  KeptRadiusBlue;
-    std::vector<cv::Point2f> blue_centers;
-    for (unsigned i = 0; i < contours.size(); i++){
-
-       double area = cv::contourArea(contours[i]); // Blob area
-
-       if(area <= 0.01) continue;
-
-       KeptAreaBlue.push_back(area); // Blob area
-
-       cv::Moments mu = cv::moments(contours[i], false);
-       blue_centers.push_back(cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00) + cv::Point2f(ROI.x, ROI.y));
-       cv::Rect rect = cv::boundingRect(contours[i]);
-       //KeptRadiusBlue.push_back((rect.width + rect.height) / 4);
-       KeptRadiusBlue.push_back(std::max(rect.width, rect.height) / 2.0);
-       //KeptRadiusBlue.push_back(sqrt(rect.width*rect.width + rect.height*rect.height));
-    }
-
-    */
-
 
     // ================= TRIO EXTRACTION =================
     vector<int> trio;
@@ -234,8 +194,7 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
             if(radiusISquare < lengthSquare || radiusJSquare < lengthSquare ) continue;
 
             length = sqrt(lengthSquare);
-            //double maxArea = std::max(KeptArea[i], KeptArea[j]);
-            //double minArea = std::min(KeptArea[i], KeptArea[j]);
+
             double maxArea = std::max(radiusI, radiusJ);
             double minArea = std::min(radiusI, radiusJ);
             printf("%3d vs. %3d => n=%6.2f rI=%6.2f rJ=%6.2f  minArea=%3.1f maxArea=%3.1f min/max=%1.3f\n", i+1, j+1, length, radiusI, radiusJ,
@@ -250,68 +209,30 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
             }
 
             centerTrio = p * 0.5 + KeptContoursPosition[j];
-            //int bluer = blueMask.data[blueMask.channels()*(blueMask.cols*centerTrio.x + centerTrio.y)];
-            //uchar* rowi = blueMask.ptr/*<uchar>*/((int)centerTrio.x);
-            //printf("\t blue: %i\n", rowi[(int)centerTrio.y]);
-            int oshit = blueMask.channels()*(blueMask.cols*(int)centerTrio.x + (int)centerTrio.y);
-            printf("\t blue: %i %i %i\n", blueMask.data[oshit], blueMask.data[oshit + 1], blueMask.data[oshit + 1]);
+
+            // We add the trio to the stack
+            detection_centers.clear();
+            detection_centers.push_back(KeptContoursPosition[i]); // First Orange dot
+            detection_centers.push_back(KeptContoursPosition[j]); // Second Orange dot
+            //detection_centers.push_back(blue_centers[bDotId]);         // Blue dot
+            detection_centers.push_back(centerTrio);         // Blue dot
+            detection_centers.push_back(cv::Point2f(radiusI, i+1));     // DEBUG FOR VISUALISATION
+            detection_centers.push_back(cv::Point2f(radiusJ, j+1));     // DEBUG FOR VISUALISATION
+            trio_distorted.push_back(detection_centers);
 
 
-            // Find the closest blue dot
-            /*
-            int bDotId;
-            double bestDist = -1;
-            for(int k = 0; k < blue_centers.size(); k++){ // Blue dot between the orange dot
-                double lengthASquare;
-                p = p0 - blue_centers[k];
-                lengthASquare =  p.x*p.x + p.y*p.y;
-                if(radiusISquare <  lengthASquare) continue;
-
-                double lengthBSquare;
-                p = KeptContoursPosition[j] - blue_centers[k];
-                lengthBSquare =  p.x*p.x + p.y*p.y;
-                if(radiusJSquare <  lengthBSquare) continue;
-
-                double maxY = std::max(KeptContoursPosition[j].y, KeptContoursPosition[i].y);
-                double minY = std::min(KeptContoursPosition[j].y, KeptContoursPosition[i].y);
-                if(blue_centers[k].y > minY && blue_centers[k].y < maxY){
-                    //printf("\t\t r=%3f\n", distanceFromLineToPoint(blue_centers[k],  KeptContoursPosition[i], KeptContoursPosition[j]));
-                    double d = distanceFromLineToPoint(blue_centers[k],  KeptContoursPosition[i], KeptContoursPosition[j]);
-                    if(bestDist == -1 || d < bestDist){
-                        bestDist = d;
-                        bDotId = k;
-                        k = blue_centers.size();
-                    }
-                }
-            }*/
-            // If a blue dot was detected
-           // if(bestDist != -1){
-
-                detection_centers.clear();
-                detection_centers.push_back(KeptContoursPosition[i]); // First Orange dot
-                detection_centers.push_back(KeptContoursPosition[j]); // Second Orange dot
-                //detection_centers.push_back(blue_centers[bDotId]);         // Blue dot
-                detection_centers.push_back(centerTrio);         // Blue dot
-                detection_centers.push_back(cv::Point2f(radiusI, i+1));     // DEBUG FOR VISUALISATION
-                detection_centers.push_back(cv::Point2f(radiusJ, j+1));     // DEBUG FOR VISUALISATION
-                trio_distorted.push_back(detection_centers);
-
-
-                trio.clear();
-                trio.push_back(i);      // First Orange dot
-                trio.push_back(j);      // Second Orange dot
-                trioStack.push_back(trio);
-            /*}
-            else{
-                printf("\t blue remove \n");
-            }*/
+            trio.clear();
+            trio.push_back(i);      // First Orange dot
+            trio.push_back(j);      // Second Orange dot
+            trioStack.push_back(trio);
         }
     }
 
     printf("\n");
 
     double ratioDotOnCameraPlan;
-    // The old shell had 1.5, the new one is 0.5
+    // The old shell had 1.5 (The position of the dot is under the marker)
+    // the new one is 0.5 (Between the two orange dot)
     ros::param::get("~ratio", ratioDotOnCameraPlan);
 
     cv::Point2f topI, botI, topJ, botJ;
@@ -361,7 +282,7 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
                    min(radiusI,radiusJ)/max(radiusI,radiusJ),
                    normOnDist);
 
-            if(min(radiusI,radiusJ)/max(radiusI,radiusJ) < 0.40){ printf("\t min/max Radius\n"); continue;}
+            if(min(radiusI,radiusJ)/max(radiusI,radiusJ) < 0.35){ printf("\t min/max Radius\n"); continue;}
 
             double ratioLenght = min(norm(topI - botI),norm(topJ - botJ))/max(norm(topI - botI),norm(topJ - botJ));
 
@@ -371,8 +292,6 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
 
 
             detection_centers.clear();
-            //detection_centers.push_back(centerI); // First Orange dot
-            //detection_centers.push_back(centerJ); // Second Orange dot
 
             // Those dots form a line with the camera
             cv::Point2f onCameraPlaneI = (botI-topI) * ratioDotOnCameraPlan + topI;
@@ -392,7 +311,7 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
     printf("Avant %3d Après %3d\n", trioStack.size(), dot_hypothesis_distorted.size());
 
 
-    // Undistort the pointsima
+    // Undistord the duo hypothesis
     dot_hypothesis_undistorted.clear();
     for(int i = 0; i < dot_hypothesis_distorted.size(); i++){
         std::vector<cv::Point2f> undistorted_points;

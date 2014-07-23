@@ -58,147 +58,40 @@ visualization_msgs::Marker MutualPoseEstimation::generateMarkerMessage(const Eig
     marker.mesh_resource = "package://particle_filter/mesh/quadrotor_2_move_cam.stl";
 
 
-
+    // The camera is 21cm in front of the center of the drone
     marker.pose.position.x = position[2] + 0.21;
     marker.pose.position.y = -position[0];
     marker.pose.position.z = -position[1];
-    double pitch, yaw, roll;
-    /*
-    Eigen::Quaterniond q = Eigen::Quaterniond(rotation);
 
-    double pitch = atan2(2.0*(q.y()*q.z() + q.w()*q.x()), q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
-    double yaw = asin(-2.0*(q.x()*q.z() - q.w()*q.y()));
-    double roll = atan2(2.0*(q.x()*q.y() + q.w()*q.z()),  q.w()*q.w() + q.x()*q.x() - q.y()*q.y() - q.z()*q.z());
-
-    printf("[OLD] Yaw %6.2f Pitch %6.2f Roll %6.2f\n", yaw, pitch, roll);
-   // tf::Quaternion qTF = tf::Quaternion(M_PI*0.5-yaw, pitch- M_PI*0.5, -roll);
-    tf::Quaternion qTF = tf::Quaternion(M_PI*1.5 - yaw, pitch- M_PI*0.5, M_PI - roll);
-    qTF.setEulerZYX(yaw, pitch- M_PI*0.5, M_PI/2 - roll);*/
-
-    // The rotation before the matrix inverse the rotation sign
-    // The rotations after the matrix turn the 3d marker so it's facing the camera
-    //marche pas
-    /*rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX())
-               * rotation
-               * Eigen::AngleAxisd(-M_PI*0.5, Eigen::Vector3d::UnitZ())
-               * Eigen::AngleAxisd(M_PI*0.5, Eigen::Vector3d::UnitY())*/;
-    /*rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitY())
-               * rotation
-               * Eigen::AngleAxisd(-M_PI*0.5, Eigen::Vector3d::UnitZ())
-               * Eigen::AngleAxisd(M_PI*0.5, Eigen::Vector3d::UnitY())*/;
-
-    /*rotation = rotation
-                   * Eigen::AngleAxisd(-M_PI*0.5, Eigen::Vector3d::UnitY())
-                   * Eigen::AngleAxisd(-M_PI*0.5, Eigen::Vector3d::UnitX())
-                   * Eigen::AngleAxisd(-M_PI, Eigen::Vector3d::UnitZ());*/
-    //pitch
-    /*rotation = Eigen::AngleAxisd(M_PI * 0.5, Eigen::Vector3d::UnitZ())
-            * rotation
-            * Eigen::AngleAxisd(-M_PI * 0.5, Eigen::Vector3d::UnitZ())
-            * Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitY());*/
-    /*rotation = Eigen::AngleAxisd(-M_PI*0.5, Eigen::Vector3d::UnitZ())
-               * Eigen::AngleAxisd(M_PI*0.5, Eigen::Vector3d::UnitX())
-                * Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitY())
-               * rotation
-               * Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitY()).matrix().transpose()
-               * Eigen::AngleAxisd(M_PI*0.5, Eigen::Vector3d::UnitX()).matrix().transpose()
-               * Eigen::AngleAxisd(-M_PI*0.5, Eigen::Vector3d::UnitZ()).matrix().transpose();*/
-    /*rotation = Eigen::AngleAxisd(-M_PI*0.5, Eigen::Vector3d::UnitZ())
-               * Eigen::AngleAxisd(M_PI*0.5, Eigen::Vector3d::UnitX())
-               * rotation
-               * Eigen::AngleAxisd(M_PI*0.5, Eigen::Vector3d::UnitX()).matrix().transpose()
-               * Eigen::AngleAxisd(M_PI*0.5, Eigen::Vector3d::UnitY()).matrix().transpose()
-               * Eigen::AngleAxisd(-M_PI*0.5, Eigen::Vector3d::UnitZ()).matrix().transpose();* Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()).matrix().transpose()*/
     rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ())
-               * rotation
-               ;
-    // Matrix=>EulerXYZ (http://www.soi.city.ac.uk/~sbbh653/publications/euler.pdf)
-    if(abs(rotation(2,0)) != 1){
-        yaw   = -asin(rotation(2,1));
-        pitch = atan2(rotation(2,1)/cos(yaw),rotation(2,2)/cos(yaw));
-        roll  = atan2(rotation(1,0)/cos(yaw),rotation(0,0)/cos(yaw));
-    }
-    else{
-        roll = 0;
-        if(rotation(2,0) == -1){
-            yaw = M_PI/2;
-            pitch = roll + atan2(rotation(0,1), rotation(0,2));
-        }
-        else{
-            yaw = -M_PI/2;
-            pitch = -roll + atan2(-rotation(0,1), -rotation(0,2));
-        }
-    }
-    printf("Matrix=>EulerXYZ Yaw:%1.2f Pitch:%1.2f Roll:%1.2f\n", yaw, pitch, roll);
-/*
-    tf::Quaternion qTF = tf::Quaternion(yaw, pitch, roll);
-    qTF.setEuler(yaw, pitch, roll);
-    marker.pose.orientation.x = qTF.x();
-    marker.pose.orientation.y = qTF.y();
-    marker.pose.orientation.z = qTF.z();
-    marker.pose.orientation.w = qTF.w();*/
+               * rotation;
+
     Eigen::Quaterniond q = Eigen::Quaterniond(rotation);
-    marker.pose.orientation.x = q.z();// z
-    marker.pose.orientation.y = -q.x();// x
-    marker.pose.orientation.z = -q.y();//-y
-    marker.pose.orientation.w = q.w();// w
+    marker.pose.orientation.x = q.z();
+    marker.pose.orientation.y = -q.x();
+    marker.pose.orientation.z = -q.y();
+    marker.pose.orientation.w = q.w();
 
     return marker;
-}
-
-void publishTransformation(){
-    /*
-    tf::StampedTransform tf_base_front;
-
-    tf_base_front = tf::StampedTransform(
-                    tf::Transform(
-                        tf::createQuaternionFromRPY(0, 0.0, 0),
-                        tf::Vector3(0, 0.0, 0.0)),
-                ros::Time::now(), "ardrone_base_frontcam", "ardrone_base_cam_fix"
-                    );
-    tf::TransformBroadcaster tf_broad;
-    tf_broad.sendTransform(tf_base_front);*/
 }
 
 geometry_msgs::PoseStamped MutualPoseEstimation::generatePoseMessage(const Eigen::Vector3d &position, Eigen::Matrix3d rotation){
 
     geometry_msgs::PoseStamped estimated_position;
-    estimated_position.pose.position.x = position[0]; // z
-    estimated_position.pose.position.y = position[1];  // x
-    estimated_position.pose.position.z = position[2]; //-y
+    estimated_position.header.frame_id = "ardrone_base_link";
 
-    //Eigen::Matrix3d invRot = rotation.inverse();
-    //rotation.col(0) = -1*rotation.col(0);
-    cout<<"Rotation: "<<rotation<<endl;
+    estimated_position.pose.position.x = position[2] + 0.21; // z
+    estimated_position.pose.position.y = -position[0];  // x
+    estimated_position.pose.position.z = -position[1]; //-y
+
+    rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ())
+               * rotation;
+
     Eigen::Quaterniond q = Eigen::Quaterniond(rotation);
-
-    double pitch = atan2(2.0*(q.y()*q.z() + q.w()*q.x()), q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
-    double yaw = asin(-2.0*(q.x()*q.z() - q.w()*q.y()));
-    double roll = atan2(2.0*(q.x()*q.y() + q.w()*q.z()),  q.w()*q.w() + q.x()*q.x() - q.y()*q.y() - q.z()*q.z());
-    printf("[OLD] Yaw %6.2f Pitch %6.2f Roll %6.2f\n", yaw, pitch, roll);
-
-   Eigen::Matrix3d m;// y => z => x
-    // X Y Z = même output? (y et R inversé?)
-    m = Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitZ())//Z
-      * Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitY())//Y
-      * Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitZ());//Z
-    //q = Eigen::Quaterniond(m);
-
-   // rotation.col(0) = -1*rotation.col(0);
-    //q = Eigen::Quaterniond(rotation);
-
-    pitch = atan2(2.0*(q.y()*q.z() + q.w()*q.x()), q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
-    yaw = asin(-2.0*(q.x()*q.z() - q.w()*q.y()));
-    roll = atan2(2.0*(q.x()*q.y() + q.w()*q.z()),  q.w()*q.w() + q.x()*q.x() - q.y()*q.y() - q.z()*q.z());
-    printf("[NEW] Yaw %6.2f Pitch %6.2f Roll %6.2f\n", yaw, pitch, roll);
-
-
-    estimated_position.pose.orientation.x = q.x();// z
-    estimated_position.pose.orientation.y = q.y();// x
-    estimated_position.pose.orientation.z = q.z();//-y
-    estimated_position.pose.orientation.w = q.w();// w
-    estimated_position.header.frame_id = "ardrone_base_frontcam";
-    //estimated_position.header.frame_id = "ardrone_base_link";
+    estimated_position.pose.orientation.x = q.z();
+    estimated_position.pose.orientation.y = -q.x();
+    estimated_position.pose.orientation.z = -q.y();
+    estimated_position.pose.orientation.w = q.w();
     return estimated_position;
 }
 

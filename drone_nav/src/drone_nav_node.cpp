@@ -6,6 +6,10 @@ DroneNav::DroneNav(ros::NodeHandle nodeHandle) : nodeHandle(nodeHandle)
 {
     this->joyInitiated = false;
     this->navInitiated = false;
+    this->poseInitiated = false;
+    geometry_msgs::Pose goal;
+    goal.position.x = 6;
+    this->autoCtrl.setGoal(goal);
     string topic;
     ros::param::get("~topic", topic); // _topic:="/cobra" when rosrun node
     ros::param::get("~ctrl", this->deadManSwitch); // _ctrl:=4 or 6
@@ -44,8 +48,11 @@ void DroneNav::loop()
         this->takeoffObserver(loopRate);
         this->landingObserver(loopRate);
         this->resetObserver(loopRate);
-        this->movementObserver(loopRate);
         this->flatTrimObserver();
+        this->controlObserver();
+
+        ros::spinOnce();
+        loopRate.sleep();
     }
 }
 
@@ -72,18 +79,32 @@ void DroneNav::navCallback(const ardrone_autonomy::Navdata& navMsg)
     }
 }
 
+void DroneNav::poseCallback(const geometry_msgs::PoseStamped& poseMsg)
+{
+    this->poseData = poseMsg;
+    if(!this->poseInitiated)
+    {
+        ROS_INFO("Pose message initiated");
+
+        this->poseInitiated = true;
+    }
+}
+
 void DroneNav::createPublishers(const string& topic)
 {
     this->pubTwist = this->nodeHandle.advertise<geometry_msgs::Twist>(topic + "/cmd_vel", 1);
     this->pubReset = this->nodeHandle.advertise<std_msgs::Empty>(topic + "/ardrone/reset", 1);
     this->pubTakeoff = this->nodeHandle.advertise<std_msgs::Empty>(topic + "/ardrone/takeoff", 1);
     this->pubLand = this->nodeHandle.advertise<std_msgs::Empty>(topic + "/ardrone/land", 1);
+
+    this->pubPath = this->nodeHandle.advertise<nav_msgs::Path>(topic + "/automous_command", 1);
 }
 
 void DroneNav::createSubscribers(const string& topic)
 {
     this->subJoy = this->nodeHandle.subscribe("/joy", 1, &DroneNav::joyCallBack, this);
     this->subNav = this->nodeHandle.subscribe(topic + "/ardrone/navdata", 1, &DroneNav::navCallback, this);
+    this->subPose = this->nodeHandle.subscribe(topic + "/pose", 1, &DroneNav::poseCallback, this);
 }
 
 void DroneNav::createServices(const string& topic)
@@ -167,7 +188,7 @@ void DroneNav::resetObserver(ros::Rate loopRate)
 
 void DroneNav::flatTrimObserver()
 {
-    if(this->button["Y"] && this->droneData.state == 2)
+    if(this->button["Start"] && this->droneData.state == 2)
     {
         std_srvs::Empty emptySrv;
         this->clientFlatTrim.call(emptySrv);
@@ -175,7 +196,41 @@ void DroneNav::flatTrimObserver()
     }
 }
 
-void DroneNav::movementObserver(ros::Rate loopRate)
+void DroneNav::controlObserver()
+{
+    if(this->button["Y"] && poseInitiated)
+    {
+        this->autonomousControlObserver();
+    }
+    else
+    {
+       this->movementObserver();
+    }
+}
+void DroneNav::autonomousControlObserver()
+{
+    geometry_msgs::Twist twistMsg;
+
+    twistMsg = this->autoCtrl.generateCommand(this->poseData);
+    this->pubTwist.publish(twistMsg);
+
+
+    nav_msgs::Path pathMsg;
+    pathMsg.header.frame_id = "ardrone_base_link";
+
+    geometry_msgs::PoseStamped dronePos = this->poseData;
+    dronePos.header.frame_id = "ardrone_base_link";
+
+    geometry_msgs::PoseStamped directionVector = dronePos;
+    directionVector.pose.position.x += twistMsg.linear.x;
+    directionVector.pose.position.y += twistMsg.linear.y;
+    directionVector.pose.position.z += twistMsg.linear.z;
+
+    pathMsg.poses.push_back(dronePos);
+    pathMsg.poses.push_back(directionVector);
+    this->pubPath.publish(pathMsg);
+}
+void DroneNav::movementObserver()
 {
     this->calibrateJoyAxis();
     geometry_msgs::Twist twistMsg;
@@ -185,8 +240,6 @@ void DroneNav::movementObserver(ros::Rate loopRate)
     twistMsg.linear.z = this->altitudeObserver() * MAX_SPEED;
     twistMsg.angular.z = this->axis["RX"] * MAX_SPEED;
     this->pubTwist.publish(twistMsg);
-    ros::spinOnce();
-    loopRate.sleep();
 }
 
 void DroneNav::calibrateJoyAxis()
@@ -227,6 +280,7 @@ void DroneNav::enableJoystick(const sensor_msgs::Joy& joyMsg)
     this->button["Y"] = joyMsg.buttons[3];
     this->button["R1"] = joyMsg.buttons[5];
     this->button["R2"] = joyMsg.buttons[7];
+    this->button["Start"] = joyMsg.buttons[9];
 
     this->axis["LY"] = joyMsg.axes[0];
     this->axis["LX"] = joyMsg.axes[1];
