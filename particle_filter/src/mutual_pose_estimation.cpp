@@ -7,37 +7,17 @@ using namespace std;
 namespace particle_filter
 {
 
-Eigen::Matrix4d MutualPoseEstimation::fromPoseToTransformMatrix(Eigen::Vector3d position,  Eigen::Matrix3d rotation){
-    Eigen::Matrix4d mat;
-    mat(0, 0) = rotation(0, 0); mat(0, 1) = rotation(0, 1); mat(0, 2) = rotation(0, 2);
-    mat(1, 0) = rotation(1, 0); mat(1, 1) = rotation(1, 1); mat(1, 2) = rotation(1, 2);
-    mat(2, 0) = rotation(2, 0); mat(2, 1) = rotation(2, 1); mat(2, 2) = rotation(2, 2);
-
-    mat(0, 3) = position[0];
-    mat(1, 3) = position[1];
-    mat(2, 3) = position[2];
-
-    mat(3, 0) = 0;
-    mat(3, 1) = 0;
-    mat(3, 2) = 0;
-    mat(3, 3) = 1;
-    return mat;
+void MutualPoseEstimation::setMarkersParameters(const double distanceRightLedRobotA, const double distanceLeftLedRobotA,
+                                 const double distanceRightLedRobotB, const double distanceLeftLedRobotB){
+    this->rdA = distanceRightLedRobotA; this->ldA = distanceLeftLedRobotA;
+    this->rdB = distanceRightLedRobotB; this->ldB = distanceLeftLedRobotB;
 }
 
-geometry_msgs::PoseStamped MutualPoseEstimation::computePoseAndMessage(Eigen::Vector2d pixelA1, Eigen::Vector2d pixelA2, Eigen::Vector2d pixelB1, Eigen::Vector2d pixelB2,
-                                                          double rdA, double ldA, double rdB, double ldB,
-														  Eigen::Vector2d fCam, Eigen::Vector2d pp){
-    Eigen::Vector3d position;
-    Eigen::Matrix3d rotation;
-
-    //MutualPoseEstimation::compute3DMutualLocalisation(pixelA1, pixelA2, pixelB1, pixelB2, pp, pp, fCam, fCam,
-    //                                                       rdA, ldA, rdB, ldB, &position, &rotation);
-    cout<<"Position: "<<position<<endl;
-    cout<<"Distance: "<<position.norm()<<endl;
-    cout<<"Rotation: "<<rotation<<endl;
-
-    return MutualPoseEstimation::generatePoseMessage(position, rotation);
+void MutualPoseEstimation::setCameraParameters(const Eigen::Vector2d pFocalCam, const Eigen::Vector2d pCenterCam){
+    this->focalCam = pFocalCam;
+    this->centerCam = pCenterCam;
 }
+
 
 visualization_msgs::Marker MutualPoseEstimation::generateMarkerMessage(const Eigen::Vector3d &position, Eigen::Matrix3d rotation, const double alpha){
     visualization_msgs::Marker marker;
@@ -95,6 +75,25 @@ geometry_msgs::PoseStamped MutualPoseEstimation::generatePoseMessage(const Eigen
     return estimated_position;
 }
 
+
+double MutualPoseEstimation::comparePoseABtoBA(const Eigen::Vector2d &pixelA1, const Eigen::Vector2d &pixelA2,
+                                               const Eigen::Vector2d &pixelB1, const Eigen::Vector2d &pixelB2,
+                                               Eigen::Vector3d &positionAB,  Eigen::Matrix3d &rotationAB){
+
+    Eigen::Matrix3d rotationBA;
+    Eigen::Vector3d positionBA;
+    this->compute3DMutualLocalisation(pixelA1, pixelA2,
+                                      pixelB1, pixelB2,
+                                      positionAB, rotationAB);
+
+
+    this->compute3DMutualLocalisation(pixelB1, pixelB2,
+                                      pixelA1, pixelA2,
+                                      positionBA, rotationBA);
+    double distanceError = positionAB.norm() - positionBA.norm();
+    return distanceError;
+}
+
 /**
    * Compute the 3D pose in 6DOF using to camera for mutual localization
    *
@@ -102,14 +101,6 @@ geometry_msgs::PoseStamped MutualPoseEstimation::generatePoseMessage(const Eigen
    * \param pixelA2 Position of the right LED on robot A
    * \param pixelB1 Position of the left LED on robot B
    * \param pixelB2 Position of the right LED on robot
-   * \param ppA Center of the camera of robot A
-   * \param ppB Center of the camera of robot B
-   * \param fCamA Focal length of the camera of robot A
-   * \param fCamB Focal length of the camera of robot B
-   * \param rdA Distance between the camera and the LED on the right side of robot A (Positive)
-   * \param ldA Distance between the camera and the LED on the left side of robot A (Positive)
-   * \param rdB Distance between the camera and the LED on the right side of robot B (Positive)
-   * \param ldB Distance between the camera and the LED on the left side of robot B (Positive)
    * \param position (Output) the position vector
    * \param rotation (Output) the rotation matrix
    *
@@ -117,11 +108,13 @@ geometry_msgs::PoseStamped MutualPoseEstimation::generatePoseMessage(const Eigen
    *
    */
 void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pixelA1, const Eigen::Vector2d &pixelA2,
-                                                 const Eigen::Vector2d &pixelB1,const  Eigen::Vector2d &pixelB2,
-                                                 const Eigen::Vector2d &fCamA, const Eigen::Vector2d &fCamB,
-                                                 const Eigen::Vector2d &ppA, const Eigen::Vector2d &ppB,
-                                                 const double &rdA, const double &ldA, const double &rdB, const double &ldB,
-                                                 Eigen::Vector3d & position, Eigen::Matrix3d & rotation){
+                                                       const Eigen::Vector2d &pixelB1,const  Eigen::Vector2d &pixelB2,
+                                                       Eigen::Vector3d &position, Eigen::Matrix3d &rotation){
+
+  Eigen::Vector2d fCamA = this->focalCam;
+  Eigen::Vector2d fCamB = this->focalCam;
+  Eigen::Vector2d ppA = this->centerCam;
+  Eigen::Vector2d ppB = this->centerCam;
   /*
   cout<<"-Parameters-"<<endl;
   cout<<"pixelA1:"<<pixelA1<<endl;
@@ -144,18 +137,14 @@ void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pi
   double alpha = acos(PAM1.dot(PAM2));
   //printf("Alpha: %f\n",alpha);
 
-  double d = rdA + ldA;
+  double d = this->rdA + this->ldA;
 
-  //Eigen::Vector2d BLeftMarker(pixelA1[0], pixelA2[0]);
-  //Eigen::Vector2d BRightMarker(pixelA1[1], pixelA2[1
   Eigen::Vector2d BLeftMarker = pixelA2;
   Eigen::Vector2d BRightMarker = pixelA1;
   
-  Eigen::Vector2d PB1(BLeftMarker[0] + (ldB/(rdB+ldB)) * (BRightMarker[0] - BLeftMarker[0]),
-                      BLeftMarker[1] + (ldB/(rdB+ldB)) * (BRightMarker[1] - BLeftMarker[1]));
+  Eigen::Vector2d PB1(BLeftMarker[0] + (this->ldB/(rdB+ldB)) * (BRightMarker[0] - BLeftMarker[0]),
+                      BLeftMarker[1] + (this->ldB/(rdB+ldB)) * (BRightMarker[1] - BLeftMarker[1]));
 
-  //cout<<"PB1: "<<PB1<<endl;
-  //cout << "BLeftMarker: \n" << BLeftMarker << endl;
   Eigen::Vector3d PB12((PB1[0]-ppA[0])/fCamA[0], (PB1[1]-ppA[1])/fCamA[1], 1);
   PB12.normalize();
   double phi = acos(PB12[0]);
@@ -164,7 +153,6 @@ void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pi
 
   Eigen::Vector2d plane = MutualPoseEstimation::computePositionMutual(alpha, beta, d);
 
-  //cout<<"plane: "<<plane<<endl;
   double EstimatedDistance = plane.norm();
 
   position =  PB12 * EstimatedDistance;
@@ -198,8 +186,8 @@ void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pi
 
   //Align the vector of the cameraA seen from B with the plan
   Eigen::Vector3d CameraASeenFromB(
-                      ((ALeftMarker[0] + (ldA/(rdA+ldA))*(ARightMarker[0] - ALeftMarker[0]))-ppB[0])/fCamB[0],
-                      ((ALeftMarker[1] + (ldA/(rdA+ldA))*(ARightMarker[1] - ALeftMarker[1]))-ppB[1])/fCamB[1],
+                      ((ALeftMarker[0] + (this->ldA/(this->rdA+this->ldA))*(ARightMarker[0] - ALeftMarker[0]))-ppB[0])/fCamB[0],
+                      ((ALeftMarker[1] + (this->ldA/(this->rdA+this->ldA))*(ARightMarker[1] - ALeftMarker[1]))-ppB[1])/fCamB[1],
                       1);
   CameraASeenFromB.normalize();
   Eigen::Vector3d alignedBToA = AlignPlans * CameraASeenFromB;
@@ -212,14 +200,12 @@ void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pi
   Eigen::Matrix3d AlignVectors = vrrotvec2mat(AngleAlignABwBA, AxisAlignABwBA);
 
   rotation =  AlignVectors * AlignPlans;
-  //cout << "Rotation:\n" << Rotation << endl;
 }
 
 Eigen::Vector2d MutualPoseEstimation::computePositionMutual(double alpha, double beta, double d){
   double r = 0.5*d/sin(alpha);
   
   // Position of the center
-  double Cx = 0.0;
   double Cy = 0.5*d/tan(alpha);
 
   // From http://mathworld.wolfram.com/Circle-LineIntersection.html

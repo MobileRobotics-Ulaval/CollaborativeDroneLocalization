@@ -21,15 +21,16 @@ namespace particle_filter
 class PoseFilter
 {
 public:
-    PoseFilter(const double distanceRightLedRobotA, const double distanceLeftLedRobotA,
-               const double distanceRightLedRobotB, const double distanceLeftLedRobotB,
-               const Eigen::Vector2d focalCam, const Eigen::Vector2d centerCam);
+    PoseFilter();
     double comparePoseABtoBA(const Eigen::Vector2d &pixelA1, const Eigen::Vector2d &pixelA2,
                              const Eigen::Vector2d &pixelB1, const Eigen::Vector2d &pixelB2,
                              Eigen::Vector3d &positionAB,  Eigen::Matrix3d &rotationAB);
+    void setMarkersParameters(const double distanceRightLedRobotA, const double distanceLeftLedRobotA,
+                             const double distanceRightLedRobotB, const double distanceLeftLedRobotB);
+    void setCameraParameters(const Eigen::Vector2d pFocalCam, const Eigen::Vector2d pCenterCam);
 private:
-    Eigen::Vector2d m_focalCam, m_centerCam;
-    double m_rdA, m_ldA, m_rdB, m_ldB;
+    Eigen::Vector2d focalCam, centerCam;
+    double rdA, ldA, rdB, ldB;
 };
 }
 #endif // POSE_FILTER_H

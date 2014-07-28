@@ -60,6 +60,7 @@ private:
     ros::Publisher pubLand;
     ros::Publisher pubTakeoff;
     ros::Publisher pubPath;
+    ros::Publisher pubGoalMarker;
     ros::Subscriber subJoy;
     ros::Subscriber subNav;
     ros::Subscriber subPose;

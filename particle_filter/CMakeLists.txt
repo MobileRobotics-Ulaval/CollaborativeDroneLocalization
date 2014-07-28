@@ -39,17 +39,13 @@ include_directories(
 # make the executable
 add_executable(particle_filter
   cfg/ParticleFilter.cfg
-  mesh/quadrotor_4.dae
-  mesh/quadrotor_3.dae
 
 
   include/particle_filter/particle_filter_node.h 
   include/particle_filter/mutual_pose_estimation.h
-  include/particle_filter/pose_filter.h
 
   src/particle_filter_node.cpp 
   src/mutual_pose_estimation.cpp
-  src/pose_filter.cpp
 )
 
 # to build the executable we depend on other packets,

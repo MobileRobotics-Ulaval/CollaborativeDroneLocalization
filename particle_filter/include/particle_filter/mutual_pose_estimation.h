@@ -18,22 +18,27 @@ namespace particle_filter
 class MutualPoseEstimation
 {
 public:
-    static Eigen::Matrix4d fromPoseToTransformMatrix(Eigen::Vector3d position,  Eigen::Matrix3d rotation);
+    void setMarkersParameters(const double distanceRightLedRobotA, const double distanceLeftLedRobotA,
+                             const double distanceRightLedRobotB, const double distanceLeftLedRobotB);
+    void setCameraParameters(const Eigen::Vector2d pFocalCam, const Eigen::Vector2d pCenterCam);
 
-    static geometry_msgs::PoseStamped computePoseAndMessage(Eigen::Vector2d ImageA1, Eigen::Vector2d ImageA2,
-                                                     Eigen::Vector2d ImageB1, Eigen::Vector2d ImageB2,
-                                                     double rdA, double ldA, double rdB, double ldB,
-                                                     Eigen::Vector2d fCam, Eigen::Vector2d pp);
+    double comparePoseABtoBA(const Eigen::Vector2d &pixelA1, const Eigen::Vector2d &pixelA2,
+                             const Eigen::Vector2d &pixelB1, const Eigen::Vector2d &pixelB2,
+                             Eigen::Vector3d &positionAB,  Eigen::Matrix3d &rotationAB);
+
     static visualization_msgs::Marker generateMarkerMessage(const Eigen::Vector3d &position, Eigen::Matrix3d rotation, const double alpha);
     static geometry_msgs::PoseStamped generatePoseMessage(const Eigen::Vector3d &position, Eigen::Matrix3d rotation);
-    static void compute3DMutualLocalisation(const Eigen::Vector2d &pixelA1, const Eigen::Vector2d &pixelA2,
-                                            const Eigen::Vector2d &pixelB1,const  Eigen::Vector2d &pixelB2,
-                                            const Eigen::Vector2d &fCamA, const Eigen::Vector2d &fCamB,
-                                            const Eigen::Vector2d &ppA, const Eigen::Vector2d &ppB,
-                                            const double &rdA, const double &ldA, const double &rdB, const double &ldB,
-                                            Eigen::Vector3d & position, Eigen::Matrix3d & rotation);
-    static Eigen::Vector2d computePositionMutual(double alpha, double beta, double d);
-    static Eigen::Matrix3d vrrotvec2mat(double p, Eigen::Vector3d r);
+    void compute3DMutualLocalisation(const Eigen::Vector2d &pixelA1, const Eigen::Vector2d &pixelA2,
+                                     const Eigen::Vector2d &pixelB1,const  Eigen::Vector2d &pixelB2,
+                                     Eigen::Vector3d & position, Eigen::Matrix3d & rotation);
+
+private:
+    Eigen::Vector2d computePositionMutual(double alpha, double beta, double d);
+    Eigen::Matrix3d vrrotvec2mat(double p, Eigen::Vector3d r);
+
+
+    Eigen::Vector2d focalCam, centerCam;
+    double rdA, ldA, rdB, ldB;
 };
 }
 #endif // POSE_ESTIMATION_H

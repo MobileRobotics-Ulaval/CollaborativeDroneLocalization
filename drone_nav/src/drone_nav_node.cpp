@@ -8,7 +8,7 @@ DroneNav::DroneNav(ros::NodeHandle nodeHandle) : nodeHandle(nodeHandle)
     this->navInitiated = false;
     this->poseInitiated = false;
     geometry_msgs::Pose goal;
-    goal.position.x = 6;
+    goal.position.x = 4;
     this->autoCtrl.setGoal(goal);
     string topic;
     ros::param::get("~topic", topic); // _topic:="/cobra" when rosrun node
@@ -98,6 +98,7 @@ void DroneNav::createPublishers(const string& topic)
     this->pubLand = this->nodeHandle.advertise<std_msgs::Empty>(topic + "/ardrone/land", 1);
 
     this->pubPath = this->nodeHandle.advertise<nav_msgs::Path>(topic + "/automous_command", 1);
+    this->pubGoalMarker = this->nodeHandle.advertise<visualization_msgs::Marker>(topic + "/goal_marker", 1);
 }
 
 void DroneNav::createSubscribers(const string& topic)
@@ -210,25 +211,12 @@ void DroneNav::controlObserver()
 void DroneNav::autonomousControlObserver()
 {
     geometry_msgs::Twist twistMsg;
-
-    twistMsg = this->autoCtrl.generateCommand(this->poseData);
-    this->pubTwist.publish(twistMsg);
-
-
     nav_msgs::Path pathMsg;
-    pathMsg.header.frame_id = "ardrone_base_link";
 
-    geometry_msgs::PoseStamped dronePos = this->poseData;
-    dronePos.header.frame_id = "ardrone_base_link";
-
-    geometry_msgs::PoseStamped directionVector = dronePos;
-    directionVector.pose.position.x += twistMsg.linear.x;
-    directionVector.pose.position.y += twistMsg.linear.y;
-    directionVector.pose.position.z += twistMsg.linear.z;
-
-    pathMsg.poses.push_back(dronePos);
-    pathMsg.poses.push_back(directionVector);
+    this->autoCtrl.generateCommand(twistMsg, pathMsg, this->poseData);
+    this->pubTwist.publish(twistMsg);
     this->pubPath.publish(pathMsg);
+    this->pubGoalMarker.publish(this->autoCtrl.generateGoalMarkerMessage());
 }
 void DroneNav::movementObserver()
 {

@@ -61,57 +61,60 @@ void DotDetector::colorThresholding(cv::Mat & pImage,
     cv::Mat imgHSV;
     cv::cvtColor(pImage , imgHSV, CV_BGR2HSV); // Convert to color image for visualisation
 
-
-    cv::Mat imgThresholded;
-
-    if(pLowH > pHighH){// If the interval is in the around zero, we split the lower and higher part of the interval than we fusion them
-        // We could also take the interval between the high and low and subtracts it to a white img
-        cv::Mat lowImgThresholded;
-        cv::Mat highImgThresholded;
-        //cv::cvSet(whiteImg, CV_RGB(0,0,0));
-        //cv::inRange(imgHSV, cv::Scalar(pHighH, pLowS, pLowV), cv::Scalar(pLowH, pHighS, pHighV), lowImgThresholded);
-        //imgThresholded = whiteImg - lowImgThresholded;
-        cv::inRange(imgHSV, cv::Scalar(pLowH, pLowS, pLowV), cv::Scalar(179, pHighS, pHighV), lowImgThresholded); //Lower part threshold
-
-        cv::inRange(imgHSV, cv::Scalar(0, pLowS, pLowV), cv::Scalar(pHighH, pHighS, pHighV), highImgThresholded); //Higher part threshold
-
-        //bitwise_or(lowImgThresholded, highImgThresholded, imgThresholded); //Fusion of the two range
-        imgThresholded = lowImgThresholded + highImgThresholded; //Fusion of the two range
-
+    // If the interval is in the around zero, we split the lower and higher part of the interval than we fusion them
+    if(pLowH > pHighH){
+        this->redHueThresholding(imgHSV, pHighH, pHighS, pHighV, pLowH, pLowS, pLowV);
     }
     else{
-        cv::inRange(imgHSV, cv::Scalar(pLowH, pLowS, pLowV), cv::Scalar(pHighH, pHighS, pHighV), imgThresholded); //Threshold the image
+        cv::inRange(imgHSV, cv::Scalar(pLowH, pLowS, pLowV), cv::Scalar(pHighH, pHighS, pHighV), imgHSV); //Threshold the image
     }
-    pImage = imgThresholded;
+    pImage = imgHSV;
 }
 
+void DotDetector::redHueThresholding(cv::Mat & pImgHSV,
+                                     const int pHighH, const int pHighS, const int pHighV,
+                                     const int pLowH,  const int pLowS,  const int pLowV){
+    // We could also take the interval between the high and low and subtracts it to a white img
+    cv::Mat lowImgThresholded;
+    cv::Mat highImgThresholded;
+
+    cv::inRange(pImgHSV, cv::Scalar(pLowH, pLowS, pLowV), cv::Scalar(179, pHighS, pHighV), lowImgThresholded); //Lower part threshold
+
+    cv::inRange(pImgHSV, cv::Scalar(0, pLowS, pLowV), cv::Scalar(pHighH, pHighS, pHighV), highImgThresholded); //Higher part threshold
+    pImgHSV = lowImgThresholded + highImgThresholded; //Fusion of the two range
+}
+
+
+// If the ROI is bigger than the image, we resize it
+void DotDetector::resizeRegionOfInterest(const int colsImg, const int rowsImg, cv::Rect & ROI){
+    if(ROI.x + ROI.width > colsImg)
+        ROI = cv::Rect(ROI.x, ROI.y, colsImg - ROI.x, ROI.height);
+    if(ROI.y + ROI.height > rowsImg)
+        ROI = cv::Rect(ROI.x, ROI.y, ROI.width, rowsImg - ROI.y);
+}
+
+//Todo add pParameter
 void DotDetector::LedFilteringArDrone(const cv::Mat &image,
                                       std::vector< std::vector<cv::Point2f> > & trio_distorted,
-                                      std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
+                                      std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted,
+                                      std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
                                       const cv::Mat &camera_matrix_K, const std::vector<double> &camera_distortion_coeffs,
                                       const cv::Mat &camera_matrix_P, cv::Rect ROI) {
-
-    //cv::Rect ROI = cv::Rect(0, 0, image.cols, image.rows);
-
-    // If the ROI is bigger than the image, we resize it
-    if(ROI.x + ROI.width > image.cols)
-        ROI = cv::Rect(ROI.x, ROI.y, image.cols - ROI.x, ROI.height);
-    if(ROI.y + ROI.height > image.rows)
-        ROI = cv::Rect(ROI.x, ROI.y, ROI.width, image.rows - ROI.y);
+    this->resizeRegionOfInterest(image.cols, image.rows, ROI);
 
     cv::Mat orangeMask = image.clone();
     cv::Mat blueMask = image.clone();
     //cv::Mat pouliotMask = image.clone();
 
     // Orange Thresholding
-    colorThresholding(orangeMask, highHOrange, highSOrange, highVOrange,
+    this->colorThresholding(orangeMask, highHOrange, highSOrange, highVOrange,
                                   lowHOrange,  lowSOrange,  lowVOrange);
-
+    /*
     // Blue Thresholding
     colorThresholding(blueMask, highHBlue, highSBlue, highVBlue,
-                                lowHBlue,  lowSBlue,  lowVBlue);
-    // Blue Thresholding
+                                lowHBlue,  lowSBlue,  lowVBlue);*/
     int dilation_type;
+    // TODO put in function
     if( morph_type == 0 ){      dilation_type = cv::MORPH_RECT; }
     else if( morph_type == 1 ){ dilation_type = cv::MORPH_CROSS; }
     else if( morph_type == 2) { dilation_type = cv::MORPH_ELLIPSE; }
@@ -123,10 +126,13 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
     if(erosion > 0)
         cv::erode (orangeMask, orangeMask, cv::getStructuringElement(dilation_type, cv::Size( 2*erosion+1, 2*erosion+1),
                                                                                           cv::Point( erosion, erosion)) );
-    if(maskToggle)
-        m_visualisationImg = blueMask;
-    else
-        m_visualisationImg = orangeMask;
+    // Keep it?
+    if(maskToggle){
+        this->visualisationImg = blueMask;
+     }
+    else{
+        this->visualisationImg = orangeMask;
+    }
 
     // Find all contours
     std::vector<std::vector<cv::Point> > contours;
@@ -134,6 +140,7 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
 
     int DataIndex = 1;
 
+    // TODO put in function
     std::vector<cv::Point2f> KeptContoursPosition;
     std::vector<cv::Point2f> detection_centers;
     dot_hypothesis_distorted.clear();
@@ -171,6 +178,8 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
     }
     printf("\n");
 
+
+    // TODO put in function
     // ================= TRIO EXTRACTION =================
     vector<int> trio;
     vector< vector<int> > trioStack;
@@ -235,6 +244,8 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
     // the new one is 0.5 (Between the two orange dot)
     ros::param::get("~ratio", ratioDotOnCameraPlan);
 
+    // TODO a) Put in function
+    //      b) Use eigen instead of cv or use norm?
     cv::Point2f topI, botI, topJ, botJ;
     cv::Point2f topV, botV, centerV;
     cv::Point2f centerI, centerJ;
@@ -322,14 +333,5 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
 
 }
 
-double DotDetector::distanceFromLineToPoint(const cv::Point2f p, const cv::Point2f lineA, const cv::Point2f lineB){
-    double A, B, C;
-    A = lineA.y - lineB.y;
-    B = lineB.x - lineA.x;
-    C = lineA.x * lineB.y - lineB.x * lineA.y;
-
-    return abs(A*p.x + B*p.y + C)/sqrt(A*A + B*B);
-
-}
 
 } // namespace

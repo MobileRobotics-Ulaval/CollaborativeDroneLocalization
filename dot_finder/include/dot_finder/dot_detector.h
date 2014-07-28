@@ -26,15 +26,8 @@ typedef Eigen::Matrix<Eigen::Vector2d, Eigen::Dynamic, 1> List2DPoints;
 
 class DotDetector
 {
-private:
-    double highHOrange, highSOrange, highVOrange, lowHOrange, lowSOrange, lowVOrange;
-    double highHBlue, highSBlue, highVBlue, lowHBlue, lowSBlue, lowVBlue;
-    int min_radius, morph_type;
-    double dilatation, erosion, max_angle, max_angle_duo, max_norm_on_dist;
-    bool maskToggle;
 public:
-    cv::Mat m_visualisationImg;
-
+    cv::Mat getVisualisationImg();
     void setOrangeParameter(const int pHighH, const int pHighS, const int pHighV,
                             const int pLowH,  const int pLowS,  const int pLowV);
     void setBlueParameter(const int pHighH, const int pHighS, const int pHighV,
@@ -43,10 +36,6 @@ public:
                               const double dilatation, const double erosion, const double max_angle,
                               const double max_angle_duo, const double max_norm_on_dist,
                               const bool maskToggle);
-    void colorThresholding(cv::Mat & image,
-                                        const int pHighH, const int pHighS, const int pHighV,
-                                        const int pLowH,  const int pLowS,  const int pLowV);
-    double distanceFromLineToPoint(const cv::Point2f p, const cv::Point2f lineA, const cv::Point2f lineB);
   /**
    * Detects the duo of markers in the image and returns their positions in the rectified image and also draws circles around the detected marker in an output image.
    *
@@ -70,9 +59,28 @@ public:
                             std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
                            const cv::Mat &camera_matrix_K, const std::vector<double> &camera_distortion_coeffs,
                            const cv::Mat &camera_matrix_P, cv::Rect ROI);
+private:
+  void colorThresholding(cv::Mat & image,
+                         const int pHighH, const int pHighS, const int pHighV,
+                         const int pLowH,  const int pLowS,  const int pLowV);
+  void redHueThresholding(cv::Mat & pImage,
+                          const int pHighH, const int pHighS, const int pHighV,
+                          const int pLowH,  const int pLowS,  const int pLowV);
+  void resizeRegionOfInterest(const int colsImg, const int rowsImg, cv::Rect & ROI);
 
+
+  cv::Mat visualisationImg;
+  double highHOrange, highSOrange, highVOrange, lowHOrange, lowSOrange, lowVOrange;
+  double highHBlue, highSBlue, highVBlue, lowHBlue, lowSBlue, lowVBlue;
+  int min_radius, morph_type;
+  double dilatation, erosion, max_angle, max_angle_duo, max_norm_on_dist;
+  bool maskToggle;
 
 };
+
+inline cv::Mat DotDetector::getVisualisationImg(){
+    return this->visualisationImg;
+}
 
 } // namespace
 
