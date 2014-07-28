@@ -58,6 +58,7 @@ private:
     ros::Publisher pubPose;
     ros::Publisher pubMarker;
     ros::Publisher pubMarkerCandidates;
+    ros::Publisher pubPoseCandidates;
 
     ros::NodeHandle nodeHandler;
 

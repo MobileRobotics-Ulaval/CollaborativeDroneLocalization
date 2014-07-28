@@ -30,6 +30,7 @@ void ParticleFilter::createPublishers(const string& topic_follower){
     this->pubPose = this->nodeHandler.advertise<geometry_msgs::PoseStamped>(topic_follower + "/pose", 1);
     this->pubMarker = this->nodeHandler.advertise<visualization_msgs::Marker>(topic_follower + "/marker", 1);
     this->pubMarkerCandidates = this->nodeHandler.advertise<visualization_msgs::MarkerArray>(topic_follower + "/pose_candidates", 1);
+    this->pubPoseCandidates = this->nodeHandler.advertise<geometry_msgs::PoseArray>(topic_follower + "/pose_array_candidates", 1);
 }
 
 void ParticleFilter::createSubscribers(const string& topic_leader, const string& topic_follower){
@@ -76,7 +77,8 @@ void ParticleFilter::runParticleFilter(){
     double best = -1;
     Eigen::Vector3d position, bestPosition;
     Eigen::Matrix3d rotation, bestRotation;
-    visualization_msgs::MarkerArray candidatesMsgs;
+    visualization_msgs::MarkerArray candidatesMarkerMsgs;
+    geometry_msgs::PoseArray candidatesPoseMsgs;
     for(int i = 0; i < leaderLeftDot.size(); i++){
         for(int j = 0; j < followerLeftDot.size(); j++){
             weight = this->poseEvaluator.comparePoseABtoBA(leaderLeftDot[i], leaderRightDot[i],
@@ -85,7 +87,8 @@ void ParticleFilter::runParticleFilter(){
             //cout << i << " on " << j << " Weight: " << weight << endl << "Pose: "<< position.transpose() << endl;
 
             // Create for a rviz Marker for each combination of dots, with a tranparency factor of 0.3
-            candidatesMsgs.markers.push_back(MutualPoseEstimation::generateMarkerMessage(position, rotation, 0.3));
+            candidatesMarkerMsgs.markers.push_back(MutualPoseEstimation::generateMarkerMessage(position, rotation, 0.3));
+            candidatesPoseMsgs.poses.push_back(MutualPoseEstimation::generatePoseMessage(position, rotation).pose);
             if(best < 0 || (abs(weight) < best && abs(weight) > 0.00001)){
                 best = abs(weight);
                 bestPosition = position;
@@ -100,7 +103,9 @@ void ParticleFilter::runParticleFilter(){
 
         this->pubPose.publish(MutualPoseEstimation::generatePoseMessage(bestPosition, bestRotation));
         this->pubMarker.publish(MutualPoseEstimation::generateMarkerMessage(bestPosition, bestRotation, 1.0));
-        this->pubMarkerCandidates.publish(candidatesMsgs);
+        this->pubMarkerCandidates.publish(candidatesMarkerMsgs);
+        candidatesPoseMsgs.header.frame_id = "ardrone_base_link";
+        this->pubPoseCandidates.publish(candidatesPoseMsgs);
     }
 }
 vector<Eigen::Vector2d> ParticleFilter::fromROSPoseArrayToVector2d(vector<geometry_msgs::Pose2D> ros_msg){
