@@ -31,6 +31,7 @@ private:
     void createPublishers(const std::string& topic);
     void createSubscribers(const std::string& topic);
     void createServices(const std::string& topic);
+    void setGoal();
 
     void waitingInitiation(ros::Rate loopRate);
     void getDroneState(int &tickCount, int maxCount);

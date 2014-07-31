@@ -73,8 +73,9 @@ void DotFinder::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg)
     camera_matrix(1, 2) = this->camInfo.P[6];
     camera_matrix(2, 2) = 1.0;
     
+
     this->cameraMatrixK = cv::Mat(3, 3, CV_64F);
-    this->cameraMatrixP = cv::Mat(3, 4, CV_64F);
+    cv::Mat cameraMatrixP = cv::Mat(3, 4, CV_64F);
 
     this->cameraMatrixK.at<double>(0, 0) = this->camInfo.K[0];
     this->cameraMatrixK.at<double>(0, 1) = this->camInfo.K[1];
@@ -85,23 +86,25 @@ void DotFinder::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg)
     this->cameraMatrixK.at<double>(2, 0) = this->camInfo.K[6];
     this->cameraMatrixK.at<double>(2, 1) = this->camInfo.K[7];
     this->cameraMatrixK.at<double>(2, 2) = this->camInfo.K[8];
-    this->cameraDistortionCoeffs = this->camInfo.D;
-    this->cameraMatrixP.at<double>(0, 0) = this->camInfo.P[0];
-    this->cameraMatrixP.at<double>(0, 1) = this->camInfo.P[1];
-    this->cameraMatrixP.at<double>(0, 2) = this->camInfo.P[2];
-    this->cameraMatrixP.at<double>(0, 3) = this->camInfo.P[3];
-    this->cameraMatrixP.at<double>(1, 0) = this->camInfo.P[4];
-    this->cameraMatrixP.at<double>(1, 1) = this->camInfo.P[5];
-    this->cameraMatrixP.at<double>(1, 2) = this->camInfo.P[6];
-    this->cameraMatrixP.at<double>(1, 3) = this->camInfo.P[7];
-    this->cameraMatrixP.at<double>(2, 0) = this->camInfo.P[8];
-    this->cameraMatrixP.at<double>(2, 1) = this->camInfo.P[9];
-    this->cameraMatrixP.at<double>(2, 2) = this->camInfo.P[10];
-    this->cameraMatrixP.at<double>(2, 3) = this->camInfo.P[11];
+    std::vector<double> cameraDistortionCoeffs = this->camInfo.D;
+    cameraMatrixP.at<double>(0, 0) = this->camInfo.P[0];
+    cameraMatrixP.at<double>(0, 1) = this->camInfo.P[1];
+    cameraMatrixP.at<double>(0, 2) = this->camInfo.P[2];
+    cameraMatrixP.at<double>(0, 3) = this->camInfo.P[3];
+    cameraMatrixP.at<double>(1, 0) = this->camInfo.P[4];
+    cameraMatrixP.at<double>(1, 1) = this->camInfo.P[5];
+    cameraMatrixP.at<double>(1, 2) = this->camInfo.P[6];
+    cameraMatrixP.at<double>(1, 3) = this->camInfo.P[7];
+    cameraMatrixP.at<double>(2, 0) = this->camInfo.P[8];
+    cameraMatrixP.at<double>(2, 1) = this->camInfo.P[9];
+    cameraMatrixP.at<double>(2, 2) = this->camInfo.P[10];
+    cameraMatrixP.at<double>(2, 3) = this->camInfo.P[11];
 
    this->cameraProjectionMatrix = camera_matrix;
    this->haveCameraInfo = true;
    ROS_INFO("Camera calibration information obtained.");
+
+   this->markerDetector.setCameraParameter(cameraMatrixK,cameraMatrixP, cameraDistortionCoeffs);
   }
 
 }
@@ -140,46 +143,44 @@ void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
  * Detect, filter and publish markers.
  */
 void DotFinder::publishDetectedLed(cv::Mat &image){
-  //regionOfInterest = cv::Rect(0, 0, image.cols, image.rows);
-
-    // Do detection of LEDs in image
   std::vector< std::vector<cv::Point2f> > dots_hypothesis_undistorted;
-
-  // Convert image to gray
-  this->marqueurDetector.LedFilteringArDrone(image,
+  this->markerDetector.ledFilteringArDrone(image,
               this->trioDistorted, this->dotsHypothesisDistorted, dots_hypothesis_undistorted,
-              this->cameraMatrixK, this->cameraDistortionCoeffs, this->cameraMatrixP, this->regionOfInterest);
+              this->regionOfInterest);
 
   if(dots_hypothesis_undistorted.size() == 0){
     ROS_WARN("No LED detected");
-    return;
   }
-
-  // Publication of the position of the possible position in the image
-  dot_finder::DuoDot duoDot_msg_to_publish;
-  geometry_msgs::Pose2D position_in_image;
-  for (int i = 0; i < dots_hypothesis_undistorted.size(); i++){
-    //Left dot
-    position_in_image.x = dots_hypothesis_undistorted[i][0].x;
-    position_in_image.y = dots_hypothesis_undistorted[i][0].y;
-    duoDot_msg_to_publish.leftDot.push_back(position_in_image);
-
-    //Right dot
-    position_in_image.x = dots_hypothesis_undistorted[i][1].x;
-    position_in_image.y = dots_hypothesis_undistorted[i][1].y;
-    duoDot_msg_to_publish.rightDot.push_back(position_in_image);
+  else{
+      this->pubDotHypothesis.publish(this->generateDotHypothesisMessage(dots_hypothesis_undistorted));
   }
-
-  duoDot_msg_to_publish.topicName = this->topic;
-  // We also publish the focal length
-  duoDot_msg_to_publish.fx = this->cameraMatrixK.at<double>(0, 0);
-  duoDot_msg_to_publish.fy = this->cameraMatrixK.at<double>(1, 1);
-
-  duoDot_msg_to_publish.px = this->cameraMatrixK.at<double>(0, 2);
-  duoDot_msg_to_publish.py = this->cameraMatrixK.at<double>(1, 2);
-
-  this->pubDotHypothesis.publish(duoDot_msg_to_publish);
   
+}
+
+dot_finder::DuoDot DotFinder::generateDotHypothesisMessage(std::vector< std::vector<cv::Point2f> > pDots){
+    dot_finder::DuoDot duoDot_msg_to_publish;
+    geometry_msgs::Pose2D position_in_image;
+    for (int i = 0; i < pDots.size(); i++){
+      //Left dot
+      position_in_image.x = pDots[i][0].x;
+      position_in_image.y = pDots[i][0].y;
+      duoDot_msg_to_publish.leftDot.push_back(position_in_image);
+
+      //Right dot
+      position_in_image.x = pDots[i][1].x;
+      position_in_image.y = pDots[i][1].y;
+      duoDot_msg_to_publish.rightDot.push_back(position_in_image);
+    }
+
+    duoDot_msg_to_publish.header.stamp = ros::Time::now();
+    duoDot_msg_to_publish.topicName = this->topic;
+    // We also publish the focal length
+    duoDot_msg_to_publish.fx = this->cameraMatrixK.at<double>(0, 0);
+    duoDot_msg_to_publish.fy = this->cameraMatrixK.at<double>(1, 1);
+
+    duoDot_msg_to_publish.px = this->cameraMatrixK.at<double>(0, 2);
+    duoDot_msg_to_publish.py = this->cameraMatrixK.at<double>(1, 2);
+    return duoDot_msg_to_publish;
 }
 
 /**
@@ -187,7 +188,7 @@ void DotFinder::publishDetectedLed(cv::Mat &image){
  */
 void DotFinder::publishVisualizationImage(const sensor_msgs::Image::ConstPtr& image_msg){
   cv::Mat image;
-  cv::cvtColor(this->marqueurDetector.getVisualisationImg() , image, CV_GRAY2BGR);
+  cv::cvtColor(this->markerDetector.getVisualisationImg() , image, CV_GRAY2BGR);
   if(this->infoToggle)
        Visualization::createVisualizationImage(image, this->dotsHypothesisDistorted, trioDistorted, regionOfInterest, duoToggle, trioToggle);
   // Convert to color image for visualisation
@@ -219,20 +220,20 @@ void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, u
   }
 
   // Detector Parameters
-  this->marqueurDetector.setDetectorParameter(config.min_radius,
-                                             config.morph_type,
-                                             config.dilation_size,
-                                             config.erosion_size,
-                                             config.maxAngle * M_PI/180.0,
-                                             config.maxAngleBetweenTrio * M_PI/180.0,
-                                             config.maxNormOnDist,
-                                             config.maskToggle);
+  this->markerDetector.setDetectorParameter(config.min_radius,
+                                            config.morph_type,
+                                            config.dilation_size,
+                                            config.erosion_size,
+                                            config.maxAngle * M_PI/180.0,
+                                            config.maxAngleBetweenTrio * M_PI/180.0,
+                                            config.maxNormOnDist,
+                                            config.maskToggle);
 
   // Color detection parameter
-  this->marqueurDetector.setOrangeParameter(config.OrangeHueHigh, config.OrangeSatHigh, config.OrangeValueHigh,
-                                            config.OrangeHueLow,  config.OrangeSatLow,  config.OrangeValueLow);
-  this->marqueurDetector.setBlueParameter(config.BlueHueHigh, config.BlueSatHigh, config.BlueValueHigh,
-                                          config.BlueHueLow,  config.BlueSatLow,  config.BlueValueLow);
+  this->markerDetector.setOrangeParameter(config.OrangeHueHigh, config.OrangeSatHigh, config.OrangeValueHigh,
+                                          config.OrangeHueLow,  config.OrangeSatLow,  config.OrangeValueLow);
+  this->markerDetector.setBlueParameter(config.BlueHueHigh, config.BlueSatHigh, config.BlueValueHigh,
+                                        config.BlueHueLow,  config.BlueSatLow,  config.BlueValueLow);
 
   ROS_INFO("Parameters changed");
 }

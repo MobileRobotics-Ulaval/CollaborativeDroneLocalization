@@ -6,12 +6,11 @@ void AutonomousControl::generateCommand(geometry_msgs::Twist &pTwistMsg,
                                         nav_msgs::Path &pPathMsg,
                                         const geometry_msgs::PoseStamped pCamPose){
     double yaw = this->getYawAngleFromQuaternion(pCamPose.pose.orientation);
-    ROS_INFO("YAW  Radians: %1.6f, Degree: %3.4f", yaw, yaw * 180.0/M_PI);
+    //ROS_INFO("YAW  Radians: %1.6f, Degree: %3.4f", yaw, yaw * 180.0/M_PI);
 
     Eigen::Vector3d dronePosition = this->getDroneCenterPostionFromCameraPosition(pCamPose.pose.position, yaw);
 
     Eigen::Vector3d direction = this->goalPosition - dronePosition;
-    std::cout << "New: "<< dronePosition.transpose() << std::endl;
 
 
     // Control only on the 2d plan no altitude control
@@ -96,7 +95,8 @@ Eigen::Vector3d AutonomousControl::getDroneCenterPostionFromCameraPosition(const
     Eigen::Vector3d camPosition(pCamPositionMsg.x,
                                 pCamPositionMsg.y,
                                 pCamPositionMsg.z);
-    std::cout << "Old :"<< camPosition.transpose() << std::endl;
+   // std::cout << "Old :"<< camPosition.transpose() << std::endl;
+
     // The camera is 21cm from the drone's center
     Eigen::Vector3d camToCenter(0.21, 0, 0);
     // We rotate it

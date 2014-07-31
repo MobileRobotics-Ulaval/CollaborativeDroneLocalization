@@ -36,6 +36,9 @@ public:
                               const double dilatation, const double erosion, const double max_angle,
                               const double max_angle_duo, const double max_norm_on_dist,
                               const bool maskToggle);
+    void setCameraParameter(const cv::Mat pCameraMatrixK,
+                            const cv::Mat pCameraMatrixP,
+                            const std::vector<double> pCameraDistortionCoeffs);
   /**
    * Detects the duo of markers in the image and returns their positions in the rectified image and also draws circles around the detected marker in an output image.
    *
@@ -54,19 +57,24 @@ public:
    * \param ROI the region of interest in the image to which the image search will be confined
    *
    */
-  void LedFilteringArDrone(const cv::Mat &image,
+  void ledFilteringArDrone(const cv::Mat &image,
                             std::vector< std::vector<cv::Point2f> > & trio_distorted,
                             std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
-                           const cv::Mat &camera_matrix_K, const std::vector<double> &camera_distortion_coeffs,
-                           const cv::Mat &camera_matrix_P, cv::Rect ROI);
+                           cv::Rect ROI);
 private:
-  void colorThresholding(cv::Mat & image,
+  void doColorThresholding(cv::Mat & image,
                          const int pHighH, const int pHighS, const int pHighV,
                          const int pLowH,  const int pLowS,  const int pLowV);
   void redHueThresholding(cv::Mat & pImage,
                           const int pHighH, const int pHighS, const int pHighV,
                           const int pLowH,  const int pLowS,  const int pLowV);
   void resizeRegionOfInterest(const int colsImg, const int rowsImg, cv::Rect & ROI);
+
+  void colorThresholdingDilateErode(cv::Mat &image);
+  void findImageFeature(const cv::Mat &image, cv::Rect ROI);
+  void extractImageTrio(std::vector< std::vector<cv::Point2f> > & trio_distorted);
+  std::vector<std::vector<cv::Point2f> > paringTrio();
+  std::vector< std::vector<cv::Point2f> > removeCameraDistortion(std::vector< std::vector<cv::Point2f> > & distortedPoints);
 
 
   cv::Mat visualisationImg;
@@ -75,6 +83,15 @@ private:
   int min_radius, morph_type;
   double dilatation, erosion, max_angle, max_angle_duo, max_norm_on_dist;
   bool maskToggle;
+
+  cv::Mat cameraMatrixK, cameraMatrixP;
+  std::vector<double> cameraDistortionCoeffs;
+
+
+  std::vector<std::map <std::string, double> > contoursFeatures;
+  //std::vector<double> keptRadius, keptArea;
+  std::vector<cv::Point2f> contoursPosition;
+  std::vector< std::vector<int> > trioStack;
 
 };
 

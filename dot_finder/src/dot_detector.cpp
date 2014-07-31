@@ -54,8 +54,16 @@ void DotDetector::setDetectorParameter(const int pMin_radius, const int pMorph_t
 
 }
 
+void DotDetector::setCameraParameter(const cv::Mat pCameraMatrixK,
+                                     const cv::Mat pCameraMatrixP,
+                                     const vector<double> pCameraDistortionCoeffs){
+    this->cameraMatrixK = pCameraMatrixK;
+    this->cameraMatrixP = pCameraMatrixP;
+    this->cameraDistortionCoeffs = pCameraDistortionCoeffs;
+}
 
-void DotDetector::colorThresholding(cv::Mat & pImage,
+
+void DotDetector::doColorThresholding(cv::Mat & pImage,
                                     const int pHighH, const int pHighS, const int pHighV,
                                     const int pLowH,  const int pLowS,  const int pLowV){
     cv::Mat imgHSV;
@@ -93,59 +101,55 @@ void DotDetector::resizeRegionOfInterest(const int colsImg, const int rowsImg, c
         ROI = cv::Rect(ROI.x, ROI.y, ROI.width, rowsImg - ROI.y);
 }
 
+
 //Todo add pParameter
-void DotDetector::LedFilteringArDrone(const cv::Mat &image,
+void DotDetector::ledFilteringArDrone(const cv::Mat &image,
                                       std::vector< std::vector<cv::Point2f> > & trio_distorted,
                                       std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted,
                                       std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
-                                      const cv::Mat &camera_matrix_K, const std::vector<double> &camera_distortion_coeffs,
-                                      const cv::Mat &camera_matrix_P, cv::Rect ROI) {
+                                      cv::Rect ROI) {
     this->resizeRegionOfInterest(image.cols, image.rows, ROI);
 
     cv::Mat orangeMask = image.clone();
-    cv::Mat blueMask = image.clone();
-    //cv::Mat pouliotMask = image.clone();
 
-    // Orange Thresholding
-    this->colorThresholding(orangeMask, highHOrange, highSOrange, highVOrange,
+    this->colorThresholdingDilateErode(orangeMask);
+
+    this->visualisationImg = orangeMask;
+
+    // TODO Need to become attribute
+    trio_distorted.clear();
+
+    this->findImageFeature(orangeMask, ROI);
+    //printf("\n");
+
+    this->extractImageTrio(trio_distorted);
+    printf("\n");
+
+    dot_hypothesis_distorted = this->paringTrio();
+    dot_hypothesis_undistorted = this->removeCameraDistortion(dot_hypothesis_distorted);
+}
+
+void DotDetector::colorThresholdingDilateErode(cv::Mat &image){
+    this->doColorThresholding(image, highHOrange, highSOrange, highVOrange,
                                   lowHOrange,  lowSOrange,  lowVOrange);
-    /*
-    // Blue Thresholding
-    colorThresholding(blueMask, highHBlue, highSBlue, highVBlue,
-                                lowHBlue,  lowSBlue,  lowVBlue);*/
-    int dilation_type;
-    // TODO put in function
-    if( morph_type == 0 ){      dilation_type = cv::MORPH_RECT; }
-    else if( morph_type == 1 ){ dilation_type = cv::MORPH_CROSS; }
-    else if( morph_type == 2) { dilation_type = cv::MORPH_ELLIPSE; }
 
     if(dilatation > 0)
-        cv::dilate(orangeMask, orangeMask, cv::getStructuringElement(dilation_type, cv::Size( 2*dilatation +1, 2*dilatation+1),
-                                                                                          cv::Point( -1, -1)) );
-
+        cv::dilate(image, image, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size( 2*dilatation +1, 2*dilatation+1),                                                                                   cv::Point( -1, -1)) );
     if(erosion > 0)
-        cv::erode (orangeMask, orangeMask, cv::getStructuringElement(dilation_type, cv::Size( 2*erosion+1, 2*erosion+1),
+        cv::erode (image, image, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size( 2*erosion+1, 2*erosion+1),
                                                                                           cv::Point( erosion, erosion)) );
-    // Keep it?
-    if(maskToggle){
-        this->visualisationImg = blueMask;
-     }
-    else{
-        this->visualisationImg = orangeMask;
-    }
+}
 
+
+void DotDetector::findImageFeature(const cv::Mat &image, cv::Rect ROI){
+    this->keptArea.clear();
+    this->keptContoursPosition.clear();
+    this->keptRadius.clear();
     // Find all contours
     std::vector<std::vector<cv::Point> > contours;
-    cv::findContours(orangeMask(ROI).clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+    cv::findContours(image(ROI).clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
     int DataIndex = 1;
-
-    // TODO put in function
-    std::vector<cv::Point2f> KeptContoursPosition;
-    std::vector<cv::Point2f> detection_centers;
-    dot_hypothesis_distorted.clear();
-    trio_distorted.clear();
-    std::vector<double> KeptRadius, KeptAvgIntensity, KeptArea;
 
     // Identify the blobs in the image
     for (unsigned i = 0; i < contours.size(); i++)
@@ -164,41 +168,39 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
          cv::Point2f mc;
          mc = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00) + cv::Point2f(ROI.x, ROI.y);
 
-        if (true){
-            // We want to output some data for further analysis in matlab.
-            printf("%6.2f, %6.2f, %6.2f, %d\n",
-                   mc.x, mc.y, area, radius, DataIndex);
-                   //total_intensity, avg_intensity
-            DataIndex++;
-        }
+         /*
+        // We want to output some data for further analysis in matlab.
+        printf("%6.2f, %6.2f, %6.2f, %d\n",
+               mc.x, mc.y, area, radius, DataIndex);
+               //total_intensity, avg_intensity
+        DataIndex++;*/
 
-        KeptArea.push_back(area);
-        KeptContoursPosition.push_back(mc);
-        KeptRadius.push_back(radius);
+        this->keptArea.push_back(area);
+        this->keptContoursPosition.push_back(mc);
+        this->keptRadius.push_back(radius);
     }
-    printf("\n");
+}
 
-
-    // TODO put in function
-    // ================= TRIO EXTRACTION =================
+void DotDetector::extractImageTrio(vector< vector<cv::Point2f> > & trio_distorted){
     vector<int> trio;
-    vector< vector<int> > trioStack;
+    std::vector<cv::Point2f> feature_visualization;
+    this->trioStack.clear();
     double length, lengthSquare, radiusI, radiusJ, radiusISquare, radiusJSquare;
     cv::Point2f p0, p, centerTrio;
-    for(int i = 0; i < KeptContoursPosition.size(); i++){ // First orange dot
+    for(int i = 0; i < this->keptContoursPosition.size(); i++){ // First orange dot
 
-        radiusI = KeptRadius[i] * 7;
+        radiusI = this->keptRadius[i] * 7;
         if(radiusI < min_radius){ radiusI = min_radius; }
         radiusISquare = radiusI * radiusI;
 
-        p0 = KeptContoursPosition[i];
-        for(int j = i + 1; j < KeptContoursPosition.size(); j++){ // Second orange dot
+        p0 = this->keptContoursPosition[i];
+        for(int j = i + 1; j < this->keptContoursPosition.size(); j++){ // Second orange dot
 
-            radiusJ = KeptRadius[j] * 7;
+            radiusJ = this->keptRadius[j] * 7;
             if(radiusJ < min_radius){ radiusJ = min_radius; }
             radiusJSquare = radiusJ * radiusJ;
 
-            p = p0 - KeptContoursPosition[j];
+            p = p0 - this->keptContoursPosition[j];
             lengthSquare =  p.x*p.x + p.y*p.y;
             if(radiusISquare < lengthSquare || radiusJSquare < lengthSquare ) continue;
 
@@ -217,58 +219,61 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
                 continue;
             }
 
-            centerTrio = p * 0.5 + KeptContoursPosition[j];
+            centerTrio = p * 0.5 + this->keptContoursPosition[j];
 
             // We add the trio to the stack
-            detection_centers.clear();
-            detection_centers.push_back(KeptContoursPosition[i]); // First Orange dot
-            detection_centers.push_back(KeptContoursPosition[j]); // Second Orange dot
-            //detection_centers.push_back(blue_centers[bDotId]);         // Blue dot
-            detection_centers.push_back(centerTrio);         // Blue dot
-            detection_centers.push_back(cv::Point2f(radiusI, i+1));     // DEBUG FOR VISUALISATION
-            detection_centers.push_back(cv::Point2f(radiusJ, j+1));     // DEBUG FOR VISUALISATION
-            trio_distorted.push_back(detection_centers);
-
-
             trio.clear();
             trio.push_back(i);      // First Orange dot
             trio.push_back(j);      // Second Orange dot
             trioStack.push_back(trio);
+
+
+            // For visualization
+            feature_visualization.clear();
+            feature_visualization.push_back(this->keptContoursPosition[i]); // First Orange dot
+            feature_visualization.push_back(this->keptContoursPosition[j]); // Second Orange dot
+            feature_visualization.push_back(centerTrio);         // Blue dot
+            feature_visualization.push_back(cv::Point2f(radiusI, i+1));     // DEBUG FOR VISUALISATION
+            feature_visualization.push_back(cv::Point2f(radiusJ, j+1));     // DEBUG FOR VISUALISATION
+            trio_distorted.push_back(feature_visualization);
         }
     }
 
-    printf("\n");
+}
 
+std::vector<std::vector<cv::Point2f> > DotDetector::paringTrio(){
+
+    std::vector<cv::Point2f> feature_visualization;
+    std::vector< std::vector<cv::Point2f> > pairedTrio;
     double ratioDotOnCameraPlan;
     // The old shell had 1.5 (The position of the dot is under the marker)
     // the new one is 0.5 (Between the two orange dot)
     ros::param::get("~ratio", ratioDotOnCameraPlan);
 
-    // TODO a) Put in function
-    //      b) Use eigen instead of cv or use norm?
+    // TODO Use eigen instead of cv or use norm?
     cv::Point2f topI, botI, topJ, botJ;
-    cv::Point2f topV, botV, centerV;
+    cv::Point2f centerV;
     cv::Point2f centerI, centerJ;
-    double topAngle, botAngle, centerAngle;
+    double centerAngle;
     // Each trio is pair with another one
     for(int i = 0; i < trioStack.size(); i++){
-        if(KeptContoursPosition[trioStack[i][0]].y  < KeptContoursPosition[trioStack[i][1]].y){
-            topI = KeptContoursPosition[trioStack[i][0]];
-            botI = KeptContoursPosition[trioStack[i][1]];
+        if(this->keptContoursPosition[trioStack[i][0]].y  < this->keptContoursPosition[trioStack[i][1]].y){
+            topI = this->keptContoursPosition[trioStack[i][0]];
+            botI = this->keptContoursPosition[trioStack[i][1]];
         }
         else{
-            topI = KeptContoursPosition[trioStack[i][1]];
-            botI = KeptContoursPosition[trioStack[i][0]];
+            topI = this->keptContoursPosition[trioStack[i][1]];
+            botI = this->keptContoursPosition[trioStack[i][0]];
         }
 
         for(int j = i + 1; j < trioStack.size(); j++){
-            if(KeptContoursPosition[trioStack[j][0]].y  < KeptContoursPosition[trioStack[j][1]].y){
-                topJ = KeptContoursPosition[trioStack[j][0]];
-                botJ = KeptContoursPosition[trioStack[j][1]];
+            if(this->keptContoursPosition[trioStack[j][0]].y  < this->keptContoursPosition[trioStack[j][1]].y){
+                topJ = this->keptContoursPosition[trioStack[j][0]];
+                botJ = this->keptContoursPosition[trioStack[j][1]];
             }
             else{
-                topJ = KeptContoursPosition[trioStack[j][1]];
-                botJ = KeptContoursPosition[trioStack[j][0]];
+                topJ = this->keptContoursPosition[trioStack[j][1]];
+                botJ = this->keptContoursPosition[trioStack[j][0]];
             }
             centerI = (topI - botI) * 0.5 + botI;
             centerJ = (topJ - botJ) * 0.5 + botJ;
@@ -279,8 +284,8 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
             if(centerAngle > max_angle_duo){ continue;}
 
             double distance =  norm(centerV);
-            double radiusI = KeptRadius[trioStack[i][0]] + KeptRadius[trioStack[i][1]];
-            double radiusJ = KeptRadius[trioStack[j][0]] + KeptRadius[trioStack[j][1]];
+            double radiusI = this->keptRadius[trioStack[i][0]] + this->keptRadius[trioStack[i][1]];
+            double radiusJ = this->keptRadius[trioStack[j][0]] + this->keptRadius[trioStack[j][1]];
 
             // This is the most effective filter
             double normOnDist = (norm(topI - botI) + norm(topJ - botJ))*0.5/distance;
@@ -302,35 +307,38 @@ void DotDetector::LedFilteringArDrone(const cv::Mat &image,
             if(radiusI/distance > 0.25 || radiusJ/distance > 0.25 ){ printf("\t min/max (too big)\n"); continue;}
 
 
-            detection_centers.clear();
+            feature_visualization.clear();
 
             // Those dots form a line with the camera
             cv::Point2f onCameraPlaneI = (botI-topI) * ratioDotOnCameraPlan + topI;
             cv::Point2f onCameraPlaneJ = (botJ-topJ) * ratioDotOnCameraPlan + topJ;
             if(botI.x < botJ.x){
-                detection_centers.push_back(onCameraPlaneI); // Left Orange dot
-                detection_centers.push_back(onCameraPlaneJ); // Right Orange dot
+                feature_visualization.push_back(onCameraPlaneI); // Left Orange dot
+                feature_visualization.push_back(onCameraPlaneJ); // Right Orange dot
             }
             else{
-                detection_centers.push_back(onCameraPlaneJ); // Left Orange dot
-                detection_centers.push_back(onCameraPlaneI); // Right Orange dot
+                feature_visualization.push_back(onCameraPlaneJ); // Left Orange dot
+                feature_visualization.push_back(onCameraPlaneI); // Right Orange dot
             }
-            detection_centers.push_back(topI);         // Blue dot
-            dot_hypothesis_distorted.push_back(detection_centers);
+            feature_visualization.push_back(topI);         // Blue dot
+            pairedTrio.push_back(feature_visualization);
         }
     }
-    printf("Avant %3d Après %3d\n", trioStack.size(), dot_hypothesis_distorted.size());
+    printf("Avant %3d Après %3d\n", trioStack.size(), pairedTrio.size());
+
+    return pairedTrio;
+}
 
 
-    // Undistord the duo hypothesis
-    dot_hypothesis_undistorted.clear();
-    for(int i = 0; i < dot_hypothesis_distorted.size(); i++){
-        std::vector<cv::Point2f> undistorted_points;
-        cv::undistortPoints(dot_hypothesis_distorted[i], undistorted_points, camera_matrix_K, camera_distortion_coeffs, cv::noArray(),
-                            camera_matrix_P);
-        dot_hypothesis_undistorted.push_back(undistorted_points);
+std::vector< std::vector<cv::Point2f> > DotDetector::removeCameraDistortion(std::vector< std::vector<cv::Point2f> > & distortedPoints){
+    std::vector< std::vector<cv::Point2f> > dot_hypothesis_undistorted;
+    for(int i = 0; i < distortedPoints.size(); i++){
+        std::vector<cv::Point2f> setOfpoints;
+        cv::undistortPoints(distortedPoints[i], setOfpoints, this->cameraMatrixK, this->cameraDistortionCoeffs, cv::noArray(),
+                            this->cameraMatrixP);
+        dot_hypothesis_undistorted.push_back(setOfpoints);
     }
-
+    return dot_hypothesis_undistorted;
 }
 
 

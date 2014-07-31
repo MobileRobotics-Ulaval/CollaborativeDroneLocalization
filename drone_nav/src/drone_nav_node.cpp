@@ -7,9 +7,6 @@ DroneNav::DroneNav(ros::NodeHandle nodeHandle) : nodeHandle(nodeHandle)
     this->joyInitiated = false;
     this->navInitiated = false;
     this->poseInitiated = false;
-    geometry_msgs::Pose goal;
-    goal.position.x = 4;
-    this->autoCtrl.setGoal(goal);
     string topic;
     ros::param::get("~topic", topic); // _topic:="/cobra" when rosrun node
     ros::param::get("~ctrl", this->deadManSwitch); // _ctrl:=4 or 6
@@ -28,8 +25,15 @@ DroneNav::DroneNav(ros::NodeHandle nodeHandle) : nodeHandle(nodeHandle)
     this->createPublishers(topic);
     this->createSubscribers(topic);
     this->createServices(topic);
+    this->setGoal();
 
     this->loop();
+}
+
+void DroneNav::setGoal(){
+    geometry_msgs::Pose goal;
+    goal.position.x = 4;
+    this->autoCtrl.setGoal(goal);
 }
 
 void DroneNav::loop()

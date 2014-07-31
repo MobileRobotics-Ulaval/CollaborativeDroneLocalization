@@ -56,12 +56,13 @@ private:
   void createSubscribers();
 
   void publishDetectedLed(cv::Mat &image);
+  dot_finder::DuoDot generateDotHypothesisMessage(std::vector< std::vector<cv::Point2f> > pDots);
   void publishVisualizationImage(const sensor_msgs::Image::ConstPtr& image_msg);
 
   string topic; //!< Camera node to subscribe
   ros::NodeHandle nodeHandle; //!< The ROS node handler
 
-  DotDetector marqueurDetector;
+  DotDetector markerDetector;
 
   image_transport::Publisher pubImage; //!< The ROS image publisher that publishes the visualisation image
   ros::Publisher pubDotHypothesis; //!< The ROS image publisher that publishes the visualisation image
@@ -79,8 +80,6 @@ private:
 
   cv::Rect regionOfInterest;
   cv::Mat cameraMatrixK; //!< Variable to store the camera matrix as an OpenCV matrix
-  cv::Mat cameraMatrixP; //!< Variable to store the projection matrix (as an OpenCV matrix) that projects points onto the rectified image plane.
-  std::vector<double> cameraDistortionCoeffs; //!< Variable to store the camera distortion parameters
   std::vector< std::vector<cv::Point2f> > trioDistorted; //!< Trio dot with distortion (for visualisation)
   std::vector< std::vector<cv::Point2f> > dotsHypothesisDistorted; //!< Dual marquer with distortion (for visualisation)
   Eigen::Matrix<double, 3, 4> cameraProjectionMatrix; //!< Stores the camera calibration matrix. This is the 3x4 projection matrix that projects the world points to the image coordinates stored in #image_points_.

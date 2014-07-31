@@ -31,11 +31,13 @@ public:
 	ParticleFilter(ros::NodeHandle n);
     void leaderDotsCallback(const dot_finder::DuoDot::ConstPtr& dots_msg);
     void followerDotsCallback(const dot_finder::DuoDot::ConstPtr& dots_msg);
-    void leaderIMUCallback(const sensor_msgs::Imu::ConstPtr& pLeader_imu_msg);
-    void followerIMUCallback(const sensor_msgs::Imu::ConstPtr& pFollower_imu_msg);
+    void leaderImuCallback(const sensor_msgs::Imu::ConstPtr& pLeader_imu_msg);
+    void followerImuCallback(const sensor_msgs::Imu::ConstPtr& pFollower_imu_msg);
 	void dynamicParametersCallback(particle_filter::ParticleFilterConfig &config, uint32_t level);
 
-	
+
+    void generateCSVLog();
+
 private:
     void createPublishers(const std::string& topic_follower);
     void createSubscribers(const std::string& topic_leader, const std::string& topic_follower);
@@ -43,17 +45,19 @@ private:
     void runParticleFilter();
     bool isInitiated();
 
-    bool follower_dots_initiation;
-    bool leader_imu_initiation, follower_imu_initiation;
-    dot_finder::DuoDot leader_last_msg, follower_last_msg;
-    sensor_msgs::Imu leader_imu_msg, follower_imu_msg;
+    bool followerDotsInitiation;
+    bool leaderImuInitiation, followerImuInitiation;
+    dot_finder::DuoDot leaderLastMsg, followerLastMsg;
+    sensor_msgs::Imu leaderImuMsg, followerImuMsg;
+
+    geometry_msgs::PoseArray candidatesPoseMsgs;
 
     MutualPoseEstimation poseEvaluator;
 
     ros::Subscriber subDotsLeader;
     ros::Subscriber subDotsFollower;
-    ros::Subscriber subIMULeader;
-    ros::Subscriber subIMUFollower;
+    ros::Subscriber subImuLeader;
+    ros::Subscriber subImuFollower;
 
     ros::Publisher pubPose;
     ros::Publisher pubMarker;
@@ -65,6 +69,7 @@ private:
 
     dynamic_reconfigure::Server<particle_filter::ParticleFilterConfig> dynamicReconfigServer; //!< The dynamic reconfigure server
     dynamic_reconfigure::Server<particle_filter::ParticleFilterConfig>::CallbackType dynamicReconfigCallback; //!< The dynamic reconfigure callback type
+
 };
 
 }

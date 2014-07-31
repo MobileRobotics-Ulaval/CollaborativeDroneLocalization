@@ -6,9 +6,9 @@ namespace particle_filter
 {
 ParticleFilter::ParticleFilter(ros::NodeHandle n) : 
     nodeHandler(n),
-    follower_dots_initiation(false),
-    leader_imu_initiation(false),
-    follower_imu_initiation(false)
+    followerDotsInitiation(false),
+    leaderImuInitiation(false),
+    followerImuInitiation(false)
   {
   string topic_leader, topic_follower;
   ros::param::get("~leader", topic_leader);
@@ -24,6 +24,7 @@ ParticleFilter::ParticleFilter(ros::NodeHandle n) :
 
   this->createPublishers(topic_follower);
   this->createSubscribers(topic_leader, topic_follower);
+
 }
 
 void ParticleFilter::createPublishers(const string& topic_follower){
@@ -37,54 +38,56 @@ void ParticleFilter::createSubscribers(const string& topic_leader, const string&
     this->subDotsLeader = this->nodeHandler.subscribe(topic_leader + "/dots", 1, &ParticleFilter::leaderDotsCallback, this);
     this->subDotsFollower = this->nodeHandler.subscribe(topic_follower + "/dots", 1, &ParticleFilter::followerDotsCallback, this);
 
-    this->subIMULeader = this->nodeHandler.subscribe(topic_leader + "/ardrone/imu", 1, &ParticleFilter::leaderIMUCallback, this);
-    this->subIMUFollower = this->nodeHandler.subscribe(topic_follower + "/ardrone/imu", 1, &ParticleFilter::followerIMUCallback, this);
+    this->subImuLeader = this->nodeHandler.subscribe(topic_leader + "/ardrone/imu", 1, &ParticleFilter::leaderImuCallback, this);
+    this->subImuFollower = this->nodeHandler.subscribe(topic_follower + "/ardrone/imu", 1, &ParticleFilter::followerImuCallback, this);
 }
 
 void ParticleFilter::followerDotsCallback(const dot_finder::DuoDot::ConstPtr& follower_msg){
-    if(!this->follower_dots_initiation)
-        this->follower_dots_initiation = true;
+    if(!this->followerDotsInitiation)
+        this->followerDotsInitiation = true;
 
-    this->follower_last_msg = *follower_msg;
+    this->followerLastMsg = *follower_msg;
 
 }
 
 void ParticleFilter::leaderDotsCallback(const dot_finder::DuoDot::ConstPtr& leader_msg){
-    this->leader_last_msg = *leader_msg;
+    this->leaderLastMsg = *leader_msg;
 
     if(this->isInitiated()){
         this->runParticleFilter();
+       // this->generateCSVLog();
     }
 }
 
 
 bool ParticleFilter::isInitiated(){
-    return this->follower_dots_initiation && this->leader_imu_initiation && this->follower_imu_initiation;
+    return this->followerDotsInitiation && this->leaderImuInitiation && this->followerImuInitiation;
 }
 
 void ParticleFilter::runParticleFilter(){
     Eigen::Vector2d fCam, pp;
-    fCam[0] =this->leader_last_msg.fx; fCam[1] = this->leader_last_msg.fy;
-    pp[0] = this->leader_last_msg.px; pp[1] = this->leader_last_msg.py;
+    fCam[0] =this->leaderLastMsg.fx; fCam[1] = this->leaderLastMsg.fy;
+    pp[0] = this->leaderLastMsg.px; pp[1] = this->leaderLastMsg.py;
     this->poseEvaluator.setCameraParameters(fCam, pp);
 
-    vector<Eigen::Vector2d> leaderLeftDot     = fromROSPoseArrayToVector2d(this->leader_last_msg.leftDot);
-    vector<Eigen::Vector2d> leaderRightDot    = fromROSPoseArrayToVector2d(this->leader_last_msg.rightDot);
-    vector<Eigen::Vector2d> followerLeftDot   = fromROSPoseArrayToVector2d(this->follower_last_msg.leftDot);
-    vector<Eigen::Vector2d> followerRightDot  = fromROSPoseArrayToVector2d(this->follower_last_msg.rightDot);
+    vector<Eigen::Vector2d> leaderLeftDot     = fromROSPoseArrayToVector2d(this->leaderLastMsg.leftDot);
+    vector<Eigen::Vector2d> leaderRightDot    = fromROSPoseArrayToVector2d(this->leaderLastMsg.rightDot);
+    vector<Eigen::Vector2d> followerLeftDot   = fromROSPoseArrayToVector2d(this->followerLastMsg.leftDot);
+    vector<Eigen::Vector2d> followerRightDot  = fromROSPoseArrayToVector2d(this->followerLastMsg.rightDot);
 
     double weight;
     double best = -1;
     Eigen::Vector3d position, bestPosition;
     Eigen::Matrix3d rotation, bestRotation;
     visualization_msgs::MarkerArray candidatesMarkerMsgs;
-    geometry_msgs::PoseArray candidatesPoseMsgs;
+    //geometry_msgs::PoseArray candidatesPoseMsgs;
+    this->candidatesPoseMsgs.poses.clear();
     for(int i = 0; i < leaderLeftDot.size(); i++){
         for(int j = 0; j < followerLeftDot.size(); j++){
             weight = this->poseEvaluator.comparePoseABtoBA(leaderLeftDot[i], leaderRightDot[i],
                                                            followerLeftDot[j], followerRightDot[j],
                                                            position, rotation);
-            //cout << i << " on " << j << " Weight: " << weight << endl << "Pose: "<< position.transpose() << endl;
+            cout << i << " on " << j << " Weight: " << weight << endl << "Pose: "<< position.transpose() << endl;
 
             // Create for a rviz Marker for each combination of dots, with a tranparency factor of 0.3
             candidatesMarkerMsgs.markers.push_back(MutualPoseEstimation::generateMarkerMessage(position, rotation, 0.3));
@@ -117,23 +120,18 @@ vector<Eigen::Vector2d> ParticleFilter::fromROSPoseArrayToVector2d(vector<geomet
 }
 
 
-void ParticleFilter::leaderIMUCallback(const sensor_msgs::Imu::ConstPtr& leader_imu_msg){
-    if(!this->leader_imu_initiation)
-        this->leader_imu_initiation = true;
+void ParticleFilter::leaderImuCallback(const sensor_msgs::Imu::ConstPtr& leaderImuMsg){
+    if(!this->leaderImuInitiation)
+        this->leaderImuInitiation = true;
 
-    this->leader_imu_msg = *leader_imu_msg;
-
+    this->leaderImuMsg = *leaderImuMsg;
 }
+void ParticleFilter::followerImuCallback(const sensor_msgs::Imu::ConstPtr& follower_imu_msg){
+    if(!this->followerImuInitiation)
+        this->followerImuInitiation = true;
 
-void ParticleFilter::followerIMUCallback(const sensor_msgs::Imu::ConstPtr& follower_imu_msg){
-    if(!this->follower_imu_initiation)
-        this->follower_imu_initiation = true;
-
-    this->follower_imu_msg = *follower_imu_msg;
-
+    this->followerImuMsg = *follower_imu_msg;
 }
-
-void ParticleFilter::followerIMUCallback(const sensor_msgs::Imu::ConstPtr& imu_msg);
 
 /**
  * The dynamic reconfigure callback function. This function updates the variable within the program whenever they are changed using dynamic reconfigure.
@@ -147,6 +145,83 @@ void ParticleFilter::dynamicParametersCallback(particle_filter::ParticleFilterCo
   
 }
 
+void ParticleFilter::generateCSVLog(){
+    string filename_imu, filename_dot, filename_poses;
+    filename_imu  = "_imu.csv";
+    filename_dot  = "_dot.csv";
+    filename_poses  = "pose_candidates.csv";
+    const char *type[] = {"leader", "follower"};
+    //double offset = 1406320000;
+
+    ofstream myfile;
+
+    // imu.csv
+    sensor_msgs::Imu imu_log;
+    for(int t = 0; t < 2; t++){
+        myfile.open((string(type[t])+ filename_imu).c_str(), ios::app);
+
+        if(t == 0)
+            imu_log = this->leaderImuMsg;
+        else
+            imu_log = this->followerImuMsg;
+        myfile << imu_log.header.stamp.toNSec() << ","
+               << imu_log.orientation.x << ","
+               << imu_log.orientation.y << ","
+               << imu_log.orientation.z << ","
+               << imu_log.orientation.w << ","
+               << imu_log.angular_velocity.x << ","
+               << imu_log.angular_velocity.y << ","
+               << imu_log.angular_velocity.z << ","
+               << imu_log.linear_acceleration.x << ","
+               << imu_log.linear_acceleration.y << ","
+               << imu_log.linear_acceleration.z << "\n";
+        myfile.close();
+    }
+
+    // dot.csv
+    dot_finder::DuoDot dot_log;
+    for(int t = 0; t < 2; t++){
+        myfile.open((string(type[t])+ filename_dot).c_str(), ios::app);
+        if(t == 0)
+            dot_log = this->leaderLastMsg;
+        else
+            dot_log = this->followerLastMsg;
+
+        for(int i = 0;  i < dot_log.leftDot.size(); i++){
+            myfile << dot_log.header.stamp.toNSec() << ","
+                   << i << ","
+                   << dot_log.leftDot.at(i).x << ","
+                   << dot_log.leftDot.at(i).y << ","
+                   << dot_log.rightDot.at(i).x << ","
+                   << dot_log.rightDot.at(i).y << "\n";
+        }
+        myfile.close();
+    }
+
+    // Pose candidate
+    ros::Time timeNow = ros::Time::now();
+    myfile.open(filename_poses.c_str(), ios::app);
+    for(int i = 0;  i < this->candidatesPoseMsgs.poses.size(); i++){
+        myfile  << timeNow.toNSec() << ","
+               << (i - i % this->followerLastMsg.leftDot.size())/ this->followerLastMsg.leftDot.size() << ","
+               << i % this->followerLastMsg.leftDot.size() << ","
+               << this->candidatesPoseMsgs.poses[i].orientation.x << ","
+               << this->candidatesPoseMsgs.poses[i].orientation.y << ","
+               << this->candidatesPoseMsgs.poses[i].orientation.z << ","
+               << this->candidatesPoseMsgs.poses[i].orientation.w << ","
+               << this->candidatesPoseMsgs.poses[i].position.x -0.21 << ","
+               << this->candidatesPoseMsgs.poses[i].position.y << ","
+               << this->candidatesPoseMsgs.poses[i].position.z << "\n";
+        // z -x -y => x=z , y = -x, z = -y
+    }
+
+    myfile.close();
+
+    ROS_INFO("All files saved!!!");
+
+}
+
+
 } // namespace particle_filter
 
 
@@ -158,5 +233,6 @@ int main(int argc, char* argv[]){
 
 	ros::NodeHandle n;
 	particle_filter::ParticleFilter particle_filter(n);
-  	ros::spin();
+
+    ros::spin();
 }
