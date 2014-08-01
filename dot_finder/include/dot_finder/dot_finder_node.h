@@ -14,6 +14,7 @@
 #ifndef DOT_FINDER_NODE_H_
 #define DOT_FINDER_NODE_H_
 
+#include <iostream>
 #include "ros/ros.h"
 
 #include <sensor_msgs/Image.h>
@@ -55,9 +56,12 @@ private:
   void createPublishers();
   void createSubscribers();
 
-  void publishDetectedLed(cv::Mat &image);
+  void publishDetectedDot(cv::Mat &image);
   dot_finder::DuoDot generateDotHypothesisMessage(std::vector< std::vector<cv::Point2f> > pDots);
   void publishVisualizationImage(const sensor_msgs::Image::ConstPtr& image_msg);
+
+  void saveDetectedData(cv::Mat &image);
+  vector<int> getHumanInputTrueFinding();
 
   string topic; //!< Camera node to subscribe
   ros::NodeHandle nodeHandle; //!< The ROS node handler

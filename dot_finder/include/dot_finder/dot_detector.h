@@ -15,6 +15,9 @@
 #ifndef DotDetector_H_
 #define DotDetector_H_
 
+#include <iostream>
+#include <fstream>
+
 #include <opencv2/opencv.hpp>
 #include <Eigen/Dense>
 #include <algorithm>
@@ -57,10 +60,16 @@ public:
    * \param ROI the region of interest in the image to which the image search will be confined
    *
    */
-  void ledFilteringArDrone(const cv::Mat &image,
-                            std::vector< std::vector<cv::Point2f> > & trio_distorted,
-                            std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
+  void dotFilteringArDrone(const cv::Mat &image,
+                           std::vector< std::vector<cv::Point2f> > & trio_distorted,
+                           std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
                            cv::Rect ROI);
+/**
+  * Detect duo of marker with almost no filtering, so it can later be convert to a Mathlab compatible file format.
+  */
+  void trainingDataAcquiring(const cv::Mat &image,
+                             std::vector< std::vector<cv::Point2f> > & trio_distorted);
+  void saveToCSV(std::vector<int> trioPositive);
 private:
   void doColorThresholding(cv::Mat & image,
                          const int pHighH, const int pHighS, const int pHighV,
@@ -76,6 +85,10 @@ private:
   std::vector<std::vector<cv::Point2f> > paringTrio();
   std::vector< std::vector<cv::Point2f> > removeCameraDistortion(std::vector< std::vector<cv::Point2f> > & distortedPoints);
 
+  // Training private Method
+  std::string generateDataLine(uint64_t time,
+                               std::vector<int> contoursId);
+  bool isOutOfRangeDot(int id);
 
   cv::Mat visualisationImg;
   double highHOrange, highSOrange, highVOrange, lowHOrange, lowSOrange, lowVOrange;

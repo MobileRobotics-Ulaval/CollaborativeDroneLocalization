@@ -32,10 +32,13 @@ void Visualization::createVisualizationImage(cv::Mat &image, std::vector< std::v
 }
 
 void Visualization::drawTrio(cv::Mat &image, std::vector< std::vector<cv::Point2f> > trio_distorted){
-  int fontFace = cv::FONT_HERSHEY_SCRIPT_SIMPLEX;
-  double fontScale = 0.7;
+  //int fontFace = cv::FONT_HERSHEY_SCRIPT_SIMPLEX;
+  int fontFace = cv::FONT_HERSHEY_PLAIN;
+  //int fontFace = cv::InitFont(cv.CV_FONT_HERSHEY_SIMPLEX, 1, 1, shear=0, thickness=2, lineType=8)
+  double fontScale = 1.0;
   int thickness = 3;
   CvScalar color;
+  cv::Point2d textPos;
 
   std::vector<cv::Point2f> hypothesis;
   for(int index = 0; index < trio_distorted.size(); index++){
@@ -59,20 +62,17 @@ void Visualization::drawTrio(cv::Mat &image, std::vector< std::vector<cv::Point2
 
     hypothesis = trio_distorted[index];
 
-    // Draw a line between each trio of dot
-    //for (int i = 1; i < hypothesis.size(); i++){
-    //  cv::line(image, hypothesis[i - 1], hypothesis[i], color, 2);
-   // }
-
     // Draw a circle around each dot
     //Orange dot
-    cv::circle(image, hypothesis[0], 2, CV_RGB(255, 0, 0), 2);
-    cv::circle(image, hypothesis[1], 2, CV_RGB(255, 0, 0), 2);
-    //Blue dot
-    //cv::circle(image, hypothesis[2], 2, CV_RGB(0, 150, 255), 2);
+    cv::circle(image, hypothesis[0], 2, color, 2);
+    cv::circle(image, hypothesis[0], 1, color, 2);//CV_RGB(255, 0, 0)
+
     std::stringstream ss;
-    ss << hypothesis[3].y;
-    cv::putText(image, ss.str(), hypothesis[0], fontFace, fontScale, color);
+    ss << hypothesis[2].x;
+    //cv::putText(image, ss.str(), hypothesis[0], fontFace, fontScale, color);
+    textPos = (hypothesis[0] - hypothesis[1])*0.5 + hypothesis[1];
+
+    cv::putText(image, ss.str(),textPos, fontFace, fontScale, color);
 
 
 

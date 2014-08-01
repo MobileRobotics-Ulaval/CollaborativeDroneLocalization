@@ -47,7 +47,7 @@ void DotFinder::createPublishers(){
 }
 
 void DotFinder::createSubscribers(){
-   this->subImage = this->nodeHandle.subscribe(this->topic + "/ardrone/image_raw", 1, &DotFinder::imageCallback, this);
+   this->subImage = this->nodeHandle.subscribe(this->topic + "/ardrone/image_raw", 100, &DotFinder::imageCallback, this);
    this->subCameraInfo = this->nodeHandle.subscribe(this->topic + "/ardrone/camera_info", 1, &DotFinder::cameraInfoCallback, this);
 }
 
@@ -133,26 +133,38 @@ void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
     return;
   }
 
-  this->publishDetectedLed(cv_ptr->image);
+  if(false){
+      this->publishDetectedDot(cv_ptr->image);
+      this->publishVisualizationImage(image_msg);
+  }
+  else{
+      this->saveDetectedData(cv_ptr->image);
+      this->publishVisualizationImage(image_msg);
 
-  this->publishVisualizationImage(image_msg);
+      vector<int> trio_positive = this->getHumanInputTrueFinding();
+      this->markerDetector.saveToCSV(trio_positive);
+  }
 }
+
 
 
 /**
  * Detect, filter and publish markers.
  */
-void DotFinder::publishDetectedLed(cv::Mat &image){
+void DotFinder::publishDetectedDot(cv::Mat &image){
   std::vector< std::vector<cv::Point2f> > dots_hypothesis_undistorted;
-  this->markerDetector.ledFilteringArDrone(image,
-              this->trioDistorted, this->dotsHypothesisDistorted, dots_hypothesis_undistorted,
-              this->regionOfInterest);
+  this->markerDetector.dotFilteringArDrone(image,
+                                           this->trioDistorted,
+                                           this->dotsHypothesisDistorted,
+                                           dots_hypothesis_undistorted,
+                                           this->regionOfInterest);
 
   if(dots_hypothesis_undistorted.size() == 0){
     ROS_WARN("No LED detected");
   }
   else{
-      this->pubDotHypothesis.publish(this->generateDotHypothesisMessage(dots_hypothesis_undistorted));
+      dot_finder::DuoDot msg = this->generateDotHypothesisMessage(dots_hypothesis_undistorted);
+      this->pubDotHypothesis.publish(msg);
   }
   
 }
@@ -201,6 +213,41 @@ void DotFinder::publishVisualizationImage(const sensor_msgs::Image::ConstPtr& im
   this->pubImage.publish(visualized_image_msg.toImageMsg());
 }
 
+
+vector<int> DotFinder::getHumanInputTrueFinding(){
+    vector<int> trio_positive;
+    string str;
+    int id;
+    bool flag = true;
+
+    while(flag && ros::ok()){
+        cout << "Please enter trio id ('n' to stop): ";
+        getline (cin, str);
+        stringstream stream(str);
+        if(stream >> id){
+            trio_positive.push_back(id);
+            cout << id << " added." << endl;
+        }
+        else{
+            if(str == "n"){
+                cout << "Finish positive input for this image" << endl << endl;
+                flag = false;
+            }
+            else{
+                cout << "Invalide input!" << endl;
+            }
+        }
+    }
+
+    return trio_positive;
+}
+
+void DotFinder::saveDetectedData(cv::Mat &image){
+    this->markerDetector.trainingDataAcquiring(image,
+                                               this->trioDistorted);
+}
+
+
 /**
  * The dynamic reconfigure callback function. This function updates the variable within the program whenever they are changed using dynamic reconfigure.
  */
@@ -242,7 +289,8 @@ void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, u
 
 int main(int argc, char* argv[])
 {
-  ros::init(argc, argv, "dot_finder", ros::init_options::AnonymousName);
+  //ros::init(argc, argv, "dot_finder", ros::init_options::AnonymousName);
+  ros::init(argc, argv, "dot_finder");
 
   dot_finder::DotFinder dot_finder_node;
   ros::spin();

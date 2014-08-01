@@ -82,7 +82,7 @@ void DotDetector::doColorThresholding(cv::Mat & pImage,
 void DotDetector::redHueThresholding(cv::Mat & pImgHSV,
                                      const int pHighH, const int pHighS, const int pHighV,
                                      const int pLowH,  const int pLowS,  const int pLowV){
-    // We could also take the interval between the high and low and subtracts it to a white img
+    // We could also take the interval between the high and low and subtracts it to a white image
     cv::Mat lowImgThresholded;
     cv::Mat highImgThresholded;
 
@@ -101,9 +101,113 @@ void DotDetector::resizeRegionOfInterest(const int colsImg, const int rowsImg, c
         ROI = cv::Rect(ROI.x, ROI.y, ROI.width, rowsImg - ROI.y);
 }
 
+void DotDetector::trainingDataAcquiring(const cv::Mat &image,
+                                        std::vector< std::vector<cv::Point2f> > & trio_distorted){
+    cv::Rect ROI(0,0, image.cols, image.rows);
+    cv::Mat orangeMask = image.clone();
+
+    this->colorThresholdingDilateErode(orangeMask);
+
+    this->visualisationImg = orangeMask;
+
+    // TODO Need to become attribute
+    trio_distorted.clear();
+
+    this->findImageFeature(orangeMask, ROI);
+
+    cv::Point2f p0, p;
+    double distBetweenContour;
+    std::vector<int> trio;
+    std::vector<cv::Point2f> feature_visualization;
+    double radiusI, radiusJ;
+    for(int i = 0; i < this->contoursPosition.size(); i++){ // First orange dot
+
+        radiusI = this->contoursFeatures[i]["radius"];
+
+        p0 = this->contoursPosition[i];
+        for(int j = i + 1; j < this->contoursPosition.size(); j++){ // Second orange dot
+
+            radiusJ = this->contoursFeatures[j]["radius"];
+            p = p0 - this->contoursPosition[j];
+            distBetweenContour = cv::norm(p0 - this->contoursPosition[j]);
+            if(radiusI*10 < distBetweenContour || radiusJ*10 < distBetweenContour) continue;
+            if(atan(abs(p.y/p.x)) < max_angle) continue;
+
+            trio.clear();
+            trio.push_back(i);      // First Orange dot
+            trio.push_back(j);      // Second Orange dot
+            trioStack.push_back(trio);
+
+
+            // For visualization
+            feature_visualization.clear();
+            feature_visualization.push_back(this->contoursPosition[i]); // First Orange dot
+            feature_visualization.push_back(this->contoursPosition[j]); // Second Orange dot
+            feature_visualization.push_back(cv::Point2f(trioStack.size() - 1, j));     // DEBUG FOR VISUALISATION
+            trio_distorted.push_back(feature_visualization);
+        }
+    }
+}
+
+void DotDetector::saveToCSV(vector<int> trioPositive){
+    string filename_pos, filename_neg;
+    filename_pos  = "data_positive_raw.csv";
+    filename_neg  = "data_negative_raw.csv";
+
+    uint64_t time = ros::Time::now().toNSec();
+
+    ofstream myfile;
+    myfile.open(filename_neg.c_str(), ios::app);
+    for(int i = 0; i < this->trioStack.size(); i++){
+        if(std::find(trioPositive.begin(), trioPositive.end(), i) == trioPositive.end()){
+            myfile << this->generateDataLine(time, trioStack[i]);
+        }
+
+    }
+    myfile.close();
+    ROS_INFO("%s saved.", filename_neg.c_str());
+
+    myfile.open(filename_pos.c_str(), ios::app);
+    for(int i = 0; i < trioPositive.size(); i++){
+        int id = trioPositive[i];
+        if(!isOutOfRangeDot(id)){
+            myfile << this->generateDataLine(time, this->trioStack[id]);
+        }
+    }
+    myfile.close();
+    ROS_INFO("%s saved.", filename_pos.c_str());
+
+}
+
+string DotDetector::generateDataLine(uint64_t time, std::vector<int> contoursId){
+    std::stringstream r;
+    r << time << ","
+      << this->contoursPosition[contoursId[0]].x << ","
+      << this->contoursPosition[contoursId[0]].y<< ","
+      << this->contoursPosition[contoursId[1]].x << ","
+      << this->contoursPosition[contoursId[1]].y;
+
+    std::map <std::string, double> firstDot  = this->contoursFeatures[ contoursId[0] ];
+    std::map <std::string, double> secondDot = this->contoursFeatures[ contoursId[1] ];
+    for(map<string,double>::iterator it = firstDot.begin(); it != firstDot.end(); ++it) {
+        r << "," << it->second;
+    }
+    for(map<string,double>::iterator it = secondDot.begin(); it != secondDot.end(); ++it) {
+        r << "," << it->second;
+    }
+
+    r << "\n";
+
+    //ROS_INFO("%s", r.str().c_str());
+    return r.str();
+}
+
+bool DotDetector::isOutOfRangeDot(int id){
+    return id < 0 || id >= this->trioStack.size();
+}
 
 //Todo add pParameter
-void DotDetector::ledFilteringArDrone(const cv::Mat &image,
+void DotDetector::dotFilteringArDrone(const cv::Mat &image,
                                       std::vector< std::vector<cv::Point2f> > & trio_distorted,
                                       std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted,
                                       std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
@@ -142,9 +246,11 @@ void DotDetector::colorThresholdingDilateErode(cv::Mat &image){
 
 
 void DotDetector::findImageFeature(const cv::Mat &image, cv::Rect ROI){
-    this->keptArea.clear();
-    this->keptContoursPosition.clear();
-    this->keptRadius.clear();
+    //this->keptArea.clear();
+    this->contoursPosition.clear();
+    //this->keptRadius.clear();
+
+    std::map <std::string, double> features;
     // Find all contours
     std::vector<std::vector<cv::Point> > contours;
     cv::findContours(image(ROI).clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
@@ -168,16 +274,13 @@ void DotDetector::findImageFeature(const cv::Mat &image, cv::Rect ROI){
          cv::Point2f mc;
          mc = cv::Point2f(mu.m10 / mu.m00, mu.m01 / mu.m00) + cv::Point2f(ROI.x, ROI.y);
 
-         /*
-        // We want to output some data for further analysis in matlab.
-        printf("%6.2f, %6.2f, %6.2f, %d\n",
-               mc.x, mc.y, area, radius, DataIndex);
-               //total_intensity, avg_intensity
-        DataIndex++;*/
-
-        this->keptArea.push_back(area);
-        this->keptContoursPosition.push_back(mc);
-        this->keptRadius.push_back(radius);
+        features.clear();
+        features["area"] = area;
+        features["radius"] = radius;
+        features["width"] = rect.width;
+        features["height"] = rect.height;
+        this->contoursFeatures.push_back(features);
+        this->contoursPosition.push_back(mc);
     }
 }
 
@@ -186,21 +289,21 @@ void DotDetector::extractImageTrio(vector< vector<cv::Point2f> > & trio_distorte
     std::vector<cv::Point2f> feature_visualization;
     this->trioStack.clear();
     double length, lengthSquare, radiusI, radiusJ, radiusISquare, radiusJSquare;
-    cv::Point2f p0, p, centerTrio;
-    for(int i = 0; i < this->keptContoursPosition.size(); i++){ // First orange dot
+    cv::Point2f p0, p;
+    for(int i = 0; i < this->contoursPosition.size(); i++){ // First orange dot
 
-        radiusI = this->keptRadius[i] * 7;
+        radiusI = this->contoursFeatures[i]["radius"] * 7;
         if(radiusI < min_radius){ radiusI = min_radius; }
         radiusISquare = radiusI * radiusI;
 
-        p0 = this->keptContoursPosition[i];
-        for(int j = i + 1; j < this->keptContoursPosition.size(); j++){ // Second orange dot
+        p0 = this->contoursPosition[i];
+        for(int j = i + 1; j < this->contoursPosition.size(); j++){ // Second orange dot
 
-            radiusJ = this->keptRadius[j] * 7;
+            radiusJ = this->contoursFeatures[j]["radius"] * 7;
             if(radiusJ < min_radius){ radiusJ = min_radius; }
             radiusJSquare = radiusJ * radiusJ;
 
-            p = p0 - this->keptContoursPosition[j];
+            p = p0 - this->contoursPosition[j];
             lengthSquare =  p.x*p.x + p.y*p.y;
             if(radiusISquare < lengthSquare || radiusJSquare < lengthSquare ) continue;
 
@@ -212,14 +315,15 @@ void DotDetector::extractImageTrio(vector< vector<cv::Point2f> > & trio_distorte
                    minArea,
                    maxArea,
                    minArea / maxArea);
-            if(minArea/maxArea < 0.3) continue;
+            //Mathlab prove that isn't a good metric
+            //if(minArea/maxArea < 0.3) continue;
 
             if(atan(abs(p.y/p.x)) < max_angle){
                 printf("\t angle remove \n");
                 continue;
             }
 
-            centerTrio = p * 0.5 + this->keptContoursPosition[j];
+            //centerTrio = p * 0.5 + this->contoursPosition[j];
 
             // We add the trio to the stack
             trio.clear();
@@ -230,11 +334,9 @@ void DotDetector::extractImageTrio(vector< vector<cv::Point2f> > & trio_distorte
 
             // For visualization
             feature_visualization.clear();
-            feature_visualization.push_back(this->keptContoursPosition[i]); // First Orange dot
-            feature_visualization.push_back(this->keptContoursPosition[j]); // Second Orange dot
-            feature_visualization.push_back(centerTrio);         // Blue dot
-            feature_visualization.push_back(cv::Point2f(radiusI, i+1));     // DEBUG FOR VISUALISATION
-            feature_visualization.push_back(cv::Point2f(radiusJ, j+1));     // DEBUG FOR VISUALISATION
+            feature_visualization.push_back(this->contoursPosition[i]); // First Orange dot
+            feature_visualization.push_back(this->contoursPosition[j]); // Second Orange dot
+            feature_visualization.push_back(cv::Point2f(i + 1, j + 1)); // DEBUG FOR VISUALISATION
             trio_distorted.push_back(feature_visualization);
         }
     }
@@ -257,23 +359,27 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringTrio(){
     double centerAngle;
     // Each trio is pair with another one
     for(int i = 0; i < trioStack.size(); i++){
-        if(this->keptContoursPosition[trioStack[i][0]].y  < this->keptContoursPosition[trioStack[i][1]].y){
-            topI = this->keptContoursPosition[trioStack[i][0]];
-            botI = this->keptContoursPosition[trioStack[i][1]];
+        int idIA = trioStack[i][0];
+        int idIB = trioStack[i][1];
+        if(this->contoursPosition[trioStack[i][0]].y  < this->contoursPosition[trioStack[i][1]].y){
+            topI = this->contoursPosition[idIA];
+            botI = this->contoursPosition[idIB];
         }
         else{
-            topI = this->keptContoursPosition[trioStack[i][1]];
-            botI = this->keptContoursPosition[trioStack[i][0]];
+            topI = this->contoursPosition[idIB];
+            botI = this->contoursPosition[idIA];
         }
 
         for(int j = i + 1; j < trioStack.size(); j++){
-            if(this->keptContoursPosition[trioStack[j][0]].y  < this->keptContoursPosition[trioStack[j][1]].y){
-                topJ = this->keptContoursPosition[trioStack[j][0]];
-                botJ = this->keptContoursPosition[trioStack[j][1]];
+            int idJA = trioStack[j][0];
+            int idJB = trioStack[j][1];
+            if(this->contoursPosition[trioStack[j][0]].y  < this->contoursPosition[trioStack[j][1]].y){
+                topJ = this->contoursPosition[idJA];
+                botJ = this->contoursPosition[idJB];
             }
             else{
-                topJ = this->keptContoursPosition[trioStack[j][1]];
-                botJ = this->keptContoursPosition[trioStack[j][0]];
+                topJ = this->contoursPosition[idJB];
+                botJ = this->contoursPosition[idJA];
             }
             centerI = (topI - botI) * 0.5 + botI;
             centerJ = (topJ - botJ) * 0.5 + botJ;
@@ -284,15 +390,15 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringTrio(){
             if(centerAngle > max_angle_duo){ continue;}
 
             double distance =  norm(centerV);
-            double radiusI = this->keptRadius[trioStack[i][0]] + this->keptRadius[trioStack[i][1]];
-            double radiusJ = this->keptRadius[trioStack[j][0]] + this->keptRadius[trioStack[j][1]];
+            double radiusI = this->contoursFeatures[idIA]["radius"] + this->contoursFeatures[idIB]["radius"];
+            double radiusJ = this->contoursFeatures[idJA]["radius"] + this->contoursFeatures[idJB]["radius"];
 
             // This is the most effective filter
             double normOnDist = (norm(topI - botI) + norm(topJ - botJ))*0.5/distance;
             if(normOnDist > max_norm_on_dist ){  printf("\t norm reject=> %6.2f\n", normOnDist); continue;}
             printf("%3d-%3d vs %3d-%3d => ctrA=%6.2f radI/dist=%6.2f radJ/dist=%6.2f min/max=%6.2f  normOnDist=%6.2f \n",
-                   trioStack[i][0] +1, trioStack[i][1] +1,
-                   trioStack[j][0] +1, trioStack[i][1] +1,
+                   idIA +1, idIB +1,
+                   idJA +1, idJB +1,
                    centerAngle*180/M_PI,
                    radiusI/distance, radiusJ/distance,
                    min(radiusI,radiusJ)/max(radiusI,radiusJ),
