@@ -65,7 +65,7 @@ void Visualization::drawTrio(cv::Mat &image, std::vector< std::vector<cv::Point2
     // Draw a circle around each dot
     //Orange dot
     cv::circle(image, hypothesis[0], 2, color, 2);
-    cv::circle(image, hypothesis[0], 1, color, 2);//CV_RGB(255, 0, 0)
+    cv::circle(image, hypothesis[1], 2, color, 2);//CV_RGB(255, 0, 0)
 
     std::stringstream ss;
     ss << hypothesis[2].x;

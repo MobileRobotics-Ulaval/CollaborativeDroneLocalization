@@ -53,22 +53,26 @@ void ParticleFilter::followerDotsCallback(const dot_finder::DuoDot::ConstPtr& fo
 void ParticleFilter::leaderDotsCallback(const dot_finder::DuoDot::ConstPtr& leader_msg){
     this->leaderLastMsg = *leader_msg;
 
-    if(this->isInitiated()){
+    if(this->isAllMessageInitiated()){
         this->runParticleFilter();
        // this->generateCSVLog();
     }
 }
 
 
-bool ParticleFilter::isInitiated(){
+bool ParticleFilter::isAllMessageInitiated(){
     return this->followerDotsInitiation && this->leaderImuInitiation && this->followerImuInitiation;
 }
 
-void ParticleFilter::runParticleFilter(){
+void ParticleFilter::updateCameraParametersFromLastMessage(){
     Eigen::Vector2d fCam, pp;
     fCam[0] =this->leaderLastMsg.fx; fCam[1] = this->leaderLastMsg.fy;
     pp[0] = this->leaderLastMsg.px; pp[1] = this->leaderLastMsg.py;
     this->poseEvaluator.setCameraParameters(fCam, pp);
+}
+
+void ParticleFilter::runParticleFilter(){
+    this->updateCameraParametersFromLastMessage();
 
     vector<Eigen::Vector2d> leaderLeftDot     = fromROSPoseArrayToVector2d(this->leaderLastMsg.leftDot);
     vector<Eigen::Vector2d> leaderRightDot    = fromROSPoseArrayToVector2d(this->leaderLastMsg.rightDot);
@@ -87,7 +91,7 @@ void ParticleFilter::runParticleFilter(){
             weight = this->poseEvaluator.comparePoseABtoBA(leaderLeftDot[i], leaderRightDot[i],
                                                            followerLeftDot[j], followerRightDot[j],
                                                            position, rotation);
-            cout << i << " on " << j << " Weight: " << weight << endl << "Pose: "<< position.transpose() << endl;
+            //cout << i << " on " << j << " Weight: " << weight << endl << "Pose: "<< position.transpose() << endl;
 
             // Create for a rviz Marker for each combination of dots, with a tranparency factor of 0.3
             candidatesMarkerMsgs.markers.push_back(MutualPoseEstimation::generateMarkerMessage(position, rotation, 0.3));

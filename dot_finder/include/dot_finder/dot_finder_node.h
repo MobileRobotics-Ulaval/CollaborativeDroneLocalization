@@ -92,6 +92,7 @@ private:
   bool infoToggle;
   bool duoToggle;
   bool trioToggle;
+  bool trainingToggle;
 
 };
 

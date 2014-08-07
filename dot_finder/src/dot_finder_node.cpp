@@ -23,10 +23,15 @@ namespace dot_finder
  * Constructor of the Dot finder Node class
  *
  */
-DotFinder::DotFinder()
+DotFinder::DotFinder():trainingToggle(false)
 {
   // Generate the name of the publishing and subscribing topics
   ros::param::get("~topic", this->topic);
+  string training;
+  ros::param::get("~training", training);
+  if(training == "on"){
+      trainingToggle = true;
+  }
 
   // Set up a dynamic reconfigure server.
   // This should be done before reading parameter server values.
@@ -133,7 +138,7 @@ void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
     return;
   }
 
-  if(false){
+  if(!this->trainingToggle){
       this->publishDetectedDot(cv_ptr->image);
       this->publishVisualizationImage(image_msg);
   }
@@ -221,7 +226,7 @@ vector<int> DotFinder::getHumanInputTrueFinding(){
     bool flag = true;
 
     while(flag && ros::ok()){
-        cout << "Please enter trio id ('n' to stop): ";
+        cout << "Please enter trio id ('n' to stop, 'c' to clear): ";
         getline (cin, str);
         stringstream stream(str);
         if(stream >> id){
@@ -232,6 +237,10 @@ vector<int> DotFinder::getHumanInputTrueFinding(){
             if(str == "n"){
                 cout << "Finish positive input for this image" << endl << endl;
                 flag = false;
+            }
+            else if(str == "c"){
+                cout << "Clear previous statements" << endl;
+                trio_positive.clear();
             }
             else{
                 cout << "Invalide input!" << endl;
@@ -257,6 +266,7 @@ void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, u
   this->infoToggle = config.infoToggle;
   this->duoToggle  = config.duoToggle;
   this->trioToggle = config.trioToggle;
+  //this->trainingToggle = config.trainingToggle;
 
   // ROI Parameters
   if(config.toggleROI){

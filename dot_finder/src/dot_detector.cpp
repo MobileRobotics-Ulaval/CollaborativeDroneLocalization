@@ -111,6 +111,7 @@ void DotDetector::trainingDataAcquiring(const cv::Mat &image,
     this->visualisationImg = orangeMask;
 
     // TODO Need to become attribute
+    trioStack.clear();
     trio_distorted.clear();
 
     this->findImageFeature(orangeMask, ROI);
@@ -248,6 +249,7 @@ void DotDetector::colorThresholdingDilateErode(cv::Mat &image){
 void DotDetector::findImageFeature(const cv::Mat &image, cv::Rect ROI){
     //this->keptArea.clear();
     this->contoursPosition.clear();
+    this->contoursFeatures.clear();
     //this->keptRadius.clear();
 
     std::map <std::string, double> features;
@@ -288,42 +290,45 @@ void DotDetector::extractImageTrio(vector< vector<cv::Point2f> > & trio_distorte
     vector<int> trio;
     std::vector<cv::Point2f> feature_visualization;
     this->trioStack.clear();
-    double length, lengthSquare, radiusI, radiusJ, radiusISquare, radiusJSquare;
+    float length,
+            areaI, areaJ,
+            radiusI, radiusJ, dRadius,
+            minRadius, maxRadius,
+            minArea, maxArea;
     cv::Point2f p0, p;
     for(int i = 0; i < this->contoursPosition.size(); i++){ // First orange dot
 
-        radiusI = this->contoursFeatures[i]["radius"] * 7;
-        if(radiusI < min_radius){ radiusI = min_radius; }
-        radiusISquare = radiusI * radiusI;
+        radiusI = this->contoursFeatures[i]["radius"];
+        areaI = this->contoursFeatures[i]["area"];
 
         p0 = this->contoursPosition[i];
         for(int j = i + 1; j < this->contoursPosition.size(); j++){ // Second orange dot
 
-            radiusJ = this->contoursFeatures[j]["radius"] * 7;
-            if(radiusJ < min_radius){ radiusJ = min_radius; }
-            radiusJSquare = radiusJ * radiusJ;
+            radiusJ = this->contoursFeatures[j]["radius"];
 
             p = p0 - this->contoursPosition[j];
-            lengthSquare =  p.x*p.x + p.y*p.y;
-            if(radiusISquare < lengthSquare || radiusJSquare < lengthSquare ) continue;
+            length =  cv::norm(p);
 
-            length = sqrt(lengthSquare);
+            minRadius = std::min(radiusI, radiusJ);
+            if(length*0.6 - minRadius - 7  > 0) continue; // Minimun Radius in function of norm
 
-            double maxArea = std::max(radiusI, radiusJ);
-            double minArea = std::min(radiusI, radiusJ);
-            printf("%3d vs. %3d => n=%6.2f rI=%6.2f rJ=%6.2f  minArea=%3.1f maxArea=%3.1f min/max=%1.3f\n", i+1, j+1, length, radiusI, radiusJ,
-                   minArea,
-                   maxArea,
-                   minArea / maxArea);
-            //Mathlab prove that isn't a good metric
-            //if(minArea/maxArea < 0.3) continue;
+            //NOT TESTED IN MATHLAB
+            if(atan(abs(p.y/p.x)) < max_angle) continue; // Angle thresholding
 
-            if(atan(abs(p.y/p.x)) < max_angle){
-                printf("\t angle remove \n");
-                continue;
-            }
+            maxRadius = std::max(radiusI, radiusJ);
+            dRadius = abs(maxRadius-minRadius);
+            if(length*2.6 - dRadius -14 < 0 || dRadius > 10) continue; // Difference min/maxRadius function of norm
 
-            //centerTrio = p * 0.5 + this->contoursPosition[j];
+            areaJ = this->contoursFeatures[j]["area"];
+            minArea = std::min(areaI, areaJ);
+            maxArea = std::max(areaI, areaJ);
+            if(length*8.2 - abs(maxArea-minArea) -41 < 0) continue; // Difference min/maxArea function of norm
+
+            if(length*6 - minArea -30 < 0) continue; // Minium Area in function of norm
+
+            double minHeight = std::min(this->contoursFeatures[i]["heigth"], this->contoursFeatures[j]["heigth"]);
+            double minWidth  = std::min(this->contoursFeatures[i]["width"], this->contoursFeatures[j]["width"]);
+            if(length*0.1 - minHeight-minWidth -4.3 > 0) continue; // Difference width/Height in function of norm
 
             // We add the trio to the stack
             trio.clear();
@@ -356,7 +361,8 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringTrio(){
     cv::Point2f topI, botI, topJ, botJ;
     cv::Point2f centerV;
     cv::Point2f centerI, centerJ;
-    double centerAngle;
+    cv::Point2f trioSegmentI, trioSegmentJ;
+    float  normI, normMax, distance;
     // Each trio is pair with another one
     for(int i = 0; i < trioStack.size(); i++){
         int idIA = trioStack[i][0];
@@ -369,11 +375,13 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringTrio(){
             topI = this->contoursPosition[idIB];
             botI = this->contoursPosition[idIA];
         }
-
+        trioSegmentI = topI - botI;
+        centerI = trioSegmentI * 0.5 + botI;
+        normI = norm(trioSegmentI);
         for(int j = i + 1; j < trioStack.size(); j++){
             int idJA = trioStack[j][0];
             int idJB = trioStack[j][1];
-            if(this->contoursPosition[trioStack[j][0]].y  < this->contoursPosition[trioStack[j][1]].y){
+            if(this->contoursPosition[idJA].y  < this->contoursPosition[idJB].y){
                 topJ = this->contoursPosition[idJA];
                 botJ = this->contoursPosition[idJB];
             }
@@ -381,37 +389,53 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringTrio(){
                 topJ = this->contoursPosition[idJB];
                 botJ = this->contoursPosition[idJA];
             }
-            centerI = (topI - botI) * 0.5 + botI;
             centerJ = (topJ - botJ) * 0.5 + botJ;
             centerV = centerI - centerJ;
-            centerAngle = atan(abs(centerV.y / centerV.x)) - atan(abs((topI - botI).x / (topI - botI).y));
+            distance =  norm(centerV);
+
+            float normJ = norm(topJ - botJ);
+            normMax = std::max(normI, normJ);
+
+            if(normMax*5 - distance + 23  < 0) continue; // Distance in function of the norm Higher plane
+            if(normMax*1.7 - distance + 24  > 0) continue; // Distance in function of the norm Lower plane
+            //ROS_INFO("(%i+%i)=>(%i+%i)",idIA +1, idIB +1, idJA + 1, idJB + 1);
+
+            /*centerAngle = atan(abs(centerV.y / centerV.x)) - atan(abs((trioSegmentI).x / (trioSegmentI).y));
+            // NOT TESTED IN MATHLAB
+            if(centerAngle > max_angle_duo) continue; // Angle thresholding*/
+
+            float maxRadiusOnDist = std::max(max(this->contoursFeatures[idIA]["radius"],
+                                             this->contoursFeatures[idIB]["radius"]),
+                                             max(this->contoursFeatures[idJA]["radius"],
+                                             this->contoursFeatures[idJB]["radius"]))/distance;
+
+            float minRadiusOnDist = std::min(min(this->contoursFeatures[idIA]["radius"],
+                                             this->contoursFeatures[idIB]["radius"]),
+                                             min(this->contoursFeatures[idJA]["radius"],
+                                             this->contoursFeatures[idJB]["radius"]))/distance;
+
+            //ROS_INFO("(min:%3.4f)(max:%3.4f)", minRadiusOnDist, maxRadiusOnDist);
+            if(maxRadiusOnDist*0.26 - minRadiusOnDist > 0) continue; // Min/maxRadius on distance thresholding
+
+            float angleI = abs(atan(trioSegmentI.y / trioSegmentI.x));
+            float angleJ = abs(atan((topJ - botJ).y / (topJ - botJ).x));
 
 
-            if(centerAngle > max_angle_duo){ continue;}
+            trioSegmentJ = topI - botI;
+            float betweenAngle = abs(atan(centerV.y/centerV.x));
+            float maxAngle = max(angleI, angleJ);
+            if(-maxAngle - betweenAngle + 1.77 < 0) continue; // Angle in between in function of maxAngle
 
-            double distance =  norm(centerV);
-            double radiusI = this->contoursFeatures[idIA]["radius"] + this->contoursFeatures[idIB]["radius"];
-            double radiusJ = this->contoursFeatures[idJA]["radius"] + this->contoursFeatures[idJB]["radius"];
+            if(abs(std::min(normI,normJ) - std::max(normI,normJ)) > 5) continue; // Difference min/maxNorm thresholding
 
-            // This is the most effective filter
-            double normOnDist = (norm(topI - botI) + norm(topJ - botJ))*0.5/distance;
-            if(normOnDist > max_norm_on_dist ){  printf("\t norm reject=> %6.2f\n", normOnDist); continue;}
-            printf("%3d-%3d vs %3d-%3d => ctrA=%6.2f radI/dist=%6.2f radJ/dist=%6.2f min/max=%6.2f  normOnDist=%6.2f \n",
-                   idIA +1, idIB +1,
-                   idJA +1, idJB +1,
-                   centerAngle*180/M_PI,
-                   radiusI/distance, radiusJ/distance,
-                   min(radiusI,radiusJ)/max(radiusI,radiusJ),
-                   normOnDist);
 
-            if(min(radiusI,radiusJ)/max(radiusI,radiusJ) < 0.35){ printf("\t min/max Radius\n"); continue;}
+            if(max(angleI, angleJ) < 1.32) continue; // MaxAngle thresholding
+            float maxArea = std::max(max(this->contoursFeatures[idIA]["area"],
+                                         this->contoursFeatures[idIB]["area"]),
+                                     max(this->contoursFeatures[idJA]["area"],
+                                         this->contoursFeatures[idJB]["area"]));
 
-            double ratioLenght = min(norm(topI - botI),norm(topJ - botJ))/max(norm(topI - botI),norm(topJ - botJ));
-
-            if(ratioLenght < 0.66){ printf("\t ratioLength (%6.2f)\n ", ratioLenght); continue;}
-            if(radiusI/distance < 0.05 || radiusJ/distance < 0.05 ){ printf("\t min/max (too small)\n"); continue;}
-            if(radiusI/distance > 0.25 || radiusJ/distance > 0.25 ){ printf("\t min/max (too big)\n"); continue;}
-
+            if(maxArea*0.03 - betweenAngle + 0.03 < 0) continue; // Angle in between in function of maxArea
 
             feature_visualization.clear();
 

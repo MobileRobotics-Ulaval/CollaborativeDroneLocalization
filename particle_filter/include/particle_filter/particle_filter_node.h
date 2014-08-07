@@ -22,6 +22,7 @@
 #include <dot_finder/DuoDot.h>
 
 
+#include <particle_filter/region_of_interest.h>
 #include <particle_filter/mutual_pose_estimation.h>
 
 namespace particle_filter
@@ -35,7 +36,6 @@ public:
     void followerImuCallback(const sensor_msgs::Imu::ConstPtr& pFollower_imu_msg);
 	void dynamicParametersCallback(particle_filter::ParticleFilterConfig &config, uint32_t level);
 
-
     void generateCSVLog();
 
 private:
@@ -43,12 +43,14 @@ private:
     void createSubscribers(const std::string& topic_leader, const std::string& topic_follower);
     std::vector<Eigen::Vector2d> fromROSPoseArrayToVector2d(std::vector<geometry_msgs::Pose2D> ros_msg);
     void runParticleFilter();
-    bool isInitiated();
+    bool isAllMessageInitiated();
+    void updateCameraParametersFromLastMessage();
 
     bool followerDotsInitiation;
     bool leaderImuInitiation, followerImuInitiation;
     dot_finder::DuoDot leaderLastMsg, followerLastMsg;
     sensor_msgs::Imu leaderImuMsg, followerImuMsg;
+    std::vector<RegionOfInterest> regionOfInterest;
 
     geometry_msgs::PoseArray candidatesPoseMsgs;
 
@@ -65,7 +67,6 @@ private:
     ros::Publisher pubPoseCandidates;
 
     ros::NodeHandle nodeHandler;
-
 
     dynamic_reconfigure::Server<particle_filter::ParticleFilterConfig> dynamicReconfigServer; //!< The dynamic reconfigure server
     dynamic_reconfigure::Server<particle_filter::ParticleFilterConfig>::CallbackType dynamicReconfigCallback; //!< The dynamic reconfigure callback type
