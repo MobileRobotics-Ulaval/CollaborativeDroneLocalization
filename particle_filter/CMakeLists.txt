@@ -7,12 +7,16 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
   geometry_msgs
   dot_finder
+  cv_bridge
+  image_transport
 )
 
 # since we need eigen search it as well
 # find_package makes the ${..._INCLUDE_DIRS} ${..._LIBRARIES} variables we use later
 find_package(Eigen REQUIRED)
 
+# Add opencv
+find_package(OpenCV REQUIRED)
 
 # Generate the reconfigure options
 generate_dynamic_reconfigure_options(cfg/ParticleFilter.cfg)
@@ -26,14 +30,16 @@ catkin_package(
   geometry_msgs 
   dot_finder
   tf
-  DEPENDS eigen
+  DEPENDS eigen OpenCV
 )
+
 
 # tell catkin where to find the headers for this project
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${EIGEN_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 # make the executable
@@ -59,4 +65,5 @@ add_dependencies(particle_filter ${catkin_EXPORTED_TARGETS}  tf ${PROJECT_NAME}_
 target_link_libraries(particle_filter
    yaml-cpp
    ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
  )

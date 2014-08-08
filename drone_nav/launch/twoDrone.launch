@@ -1,0 +1,30 @@
+<launch>
+	<group ns="king">
+	      	<node name="ardrone_driver" pkg="ardrone_autonomy" type="ardrone_driver" args="-ip 192.168.1.11 -navdata-port 1554 -video-port 1555 -at-port 1556" >
+			<param name="max_bitrate" value="4000" />
+			<param name="bitrate" value="4000" />
+			<param name="outdoor" value="1" />
+			<param name="altitude_max" value="3000" />
+			<param name="realtime_navdata" value="false" />
+			<param name="realtime_video" value="true" />
+	    		<param name="navdata_demo" value="1" />
+		</node>
+	</group>
+
+        <group ns="mamba">
+	      	<node name="ardrone_driver" pkg="ardrone_autonomy" type="ardrone_driver" args="-ip 192.168.1.10 -navdata-port 2554 -video-port 2555 -at-port 2556" >
+		    	<param name="max_bitrate" value="4000" />
+		    	<param name="bitrate" value="4000" />
+			<param name="outdoor" value="1" />
+			<param name="altitude_max" value="3000" />
+			<param name="realtime_navdata" value="false" />
+	    		<param name="navdata_demo" value="1" />
+			<param name="realtime_video" value="true" />
+			<param name="drone_frame_id" value="follower_base" />
+				
+
+		</node>
+        </group>
+
+</launch>
+

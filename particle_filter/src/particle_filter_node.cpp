@@ -22,16 +22,20 @@ ParticleFilter::ParticleFilter(ros::NodeHandle n) :
   dynamicReconfigCallback = boost::bind(&ParticleFilter::dynamicParametersCallback, this, _1, _2);
   dynamicReconfigServer.setCallback(dynamicReconfigCallback);
 
-  this->createPublishers(topic_follower);
+  this->createPublishers(topic_leader, topic_follower);
   this->createSubscribers(topic_leader, topic_follower);
 
 }
 
-void ParticleFilter::createPublishers(const string& topic_follower){
+void ParticleFilter::createPublishers(const string& topic_leader, const string& topic_follower){
     this->pubPose = this->nodeHandler.advertise<geometry_msgs::PoseStamped>(topic_follower + "/pose", 1);
     this->pubMarker = this->nodeHandler.advertise<visualization_msgs::Marker>(topic_follower + "/marker", 1);
     this->pubMarkerCandidates = this->nodeHandler.advertise<visualization_msgs::MarkerArray>(topic_follower + "/pose_candidates", 1);
     this->pubPoseCandidates = this->nodeHandler.advertise<geometry_msgs::PoseArray>(topic_follower + "/pose_array_candidates", 1);
+
+    image_transport::ImageTransport image_transport(this->nodeHandler);
+    this->pubROILeader = image_transport.advertise(topic_leader + "/image_ROI", 1);
+    this->pubROIFollower = image_transport.advertise(topic_follower + "/image_ROI", 1);
 }
 
 void ParticleFilter::createSubscribers(const string& topic_leader, const string& topic_follower){
@@ -40,6 +44,23 @@ void ParticleFilter::createSubscribers(const string& topic_leader, const string&
 
     this->subImuLeader = this->nodeHandler.subscribe(topic_leader + "/ardrone/imu", 1, &ParticleFilter::leaderImuCallback, this);
     this->subImuFollower = this->nodeHandler.subscribe(topic_follower + "/ardrone/imu", 1, &ParticleFilter::followerImuCallback, this);
+
+    this->subVisualizationLeader = this->nodeHandler.subscribe(topic_leader + "/ardrone/image_raw", 1, &ParticleFilter::visualizationCallbackLeader, this);
+    this->subVisualizationFollower = this->nodeHandler.subscribe(topic_follower + "/ardrone/image_raw", 1, &ParticleFilter::visualizationCallbackFollower, this);
+
+}
+
+void ParticleFilter::leaderImuCallback(const sensor_msgs::Imu::ConstPtr& leaderImuMsg){
+    if(!this->leaderImuInitiation)
+        this->leaderImuInitiation = true;
+
+    this->leaderImuMsg = *leaderImuMsg;
+}
+void ParticleFilter::followerImuCallback(const sensor_msgs::Imu::ConstPtr& follower_imu_msg){
+    if(!this->followerImuInitiation)
+        this->followerImuInitiation = true;
+
+    this->followerImuMsg = *follower_imu_msg;
 }
 
 void ParticleFilter::followerDotsCallback(const dot_finder::DuoDot::ConstPtr& follower_msg){
@@ -78,6 +99,9 @@ void ParticleFilter::runParticleFilter(){
     vector<Eigen::Vector2d> leaderRightDot    = fromROSPoseArrayToVector2d(this->leaderLastMsg.rightDot);
     vector<Eigen::Vector2d> followerLeftDot   = fromROSPoseArrayToVector2d(this->followerLastMsg.leftDot);
     vector<Eigen::Vector2d> followerRightDot  = fromROSPoseArrayToVector2d(this->followerLastMsg.rightDot);
+
+    this->regionOfInterest[0].filterCandidate(leaderLeftDot, leaderRightDot);
+    this->regionOfInterest[1].filterCandidate(followerLeftDot, followerRightDot);
 
     double weight;
     double best = -1;
@@ -123,18 +147,63 @@ vector<Eigen::Vector2d> ParticleFilter::fromROSPoseArrayToVector2d(vector<geomet
     return eigenVectorArray;
 }
 
+/**
+ * Visualization
+ */
 
-void ParticleFilter::leaderImuCallback(const sensor_msgs::Imu::ConstPtr& leaderImuMsg){
-    if(!this->leaderImuInitiation)
-        this->leaderImuInitiation = true;
 
-    this->leaderImuMsg = *leaderImuMsg;
+void ParticleFilter::visualizationCallbackLeader(const sensor_msgs::Image::ConstPtr& image_msg){
+    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8);// MONO
+    sensor_msgs::ImagePtr msg = this->generateAndPublishROIVisualization(0, cv_ptr->image);
+    this->pubROILeader.publish(msg);
 }
-void ParticleFilter::followerImuCallback(const sensor_msgs::Imu::ConstPtr& follower_imu_msg){
-    if(!this->followerImuInitiation)
-        this->followerImuInitiation = true;
 
-    this->followerImuMsg = *follower_imu_msg;
+void ParticleFilter::visualizationCallbackFollower(const sensor_msgs::Image::ConstPtr& image_msg){
+    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8);// MONO
+    sensor_msgs::ImagePtr msg = this->generateAndPublishROIVisualization(1, cv_ptr->image);
+    this->pubROIFollower.publish(msg);
+}
+
+vector<cv::Point2f> ParticleFilter::fromROSPoseArrayToCvPoint(vector<geometry_msgs::Pose2D> ros_msg){
+    vector<cv::Point2f> openCvVectorArray;
+    for(int i = 0; i < ros_msg.size(); i++){
+        openCvVectorArray.push_back(cv::Point2f(ros_msg[i].x, ros_msg[i].y));
+    }
+    return openCvVectorArray;
+}
+
+sensor_msgs::ImagePtr ParticleFilter::generateAndPublishROIVisualization(int idROI, cv::Mat &img){
+    this->drawDistortedMarker(idROI, img);
+    this->drawRegionOfInterest(idROI, img);
+
+    cv_bridge::CvImage visualized_image_msg;
+    visualized_image_msg.encoding = sensor_msgs::image_encodings::BGR8;
+    visualized_image_msg.image = img;
+
+    return visualized_image_msg.toImageMsg();
+}
+
+void ParticleFilter::drawDistortedMarker(int idROI, cv::Mat &img){
+    vector<cv::Point2f> leftDot, rightDot;
+    if(idROI == 0){
+        leftDot  = fromROSPoseArrayToCvPoint(this->leaderLastMsg.leftDot);
+        rightDot = fromROSPoseArrayToCvPoint(this->leaderLastMsg.rightDot);
+    }
+    else{
+        leftDot  = fromROSPoseArrayToCvPoint(this->followerLastMsg.leftDot);
+        rightDot = fromROSPoseArrayToCvPoint(this->followerLastMsg.rightDot);
+    }
+    for(int i = 0; i < leftDot.size(); i++){
+        cv::circle(img, leftDot[i], 2, CV_RGB(173, 33, 96), 2);
+        cv::circle(img, rightDot[i], 2, CV_RGB(173, 33, 96), 2);
+
+        cv::line(img, leftDot[i], rightDot[i], CV_RGB(255, 0, 0), 2);
+    }
+}
+
+void ParticleFilter::drawRegionOfInterest(int idROI, cv::Mat &img){
+    cv::Rect ROI = this->regionOfInterest[idROI].getCvRect();
+    cv::rectangle(img, ROI, CV_RGB(0, 0, 255), 2);
 }
 
 /**

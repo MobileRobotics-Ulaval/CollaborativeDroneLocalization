@@ -19,8 +19,11 @@ namespace dot_finder
 {
 
 
-void Visualization::createVisualizationImage(cv::Mat &image, std::vector< std::vector<cv::Point2f> > dots_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > trio_distorted,
-                                             cv::Rect region_of_interest, const bool markerDuo, const bool trio)
+void Visualization::createVisualizationImage(cv::Mat &image,
+                                             std::vector< std::vector<cv::Point2f> > dots_hypothesis_distorted,
+                                             std::vector< std::vector<cv::Point2f> > trio_distorted,
+                                             cv::Rect region_of_interest,
+                                             const bool markerDuo, const bool trio)
 {
     if(trio)
         drawTrio(image, trio_distorted);
