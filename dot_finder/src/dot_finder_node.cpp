@@ -277,20 +277,13 @@ void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, u
   }
 
   // Detector Parameters
-  this->markerDetector.setDetectorParameter(config.min_radius,
-                                            config.morph_type,
-                                            config.dilation_size,
+  this->markerDetector.setDetectorParameter(config.dilation_size,
                                             config.erosion_size,
-                                            config.maxAngle * M_PI/180.0,
-                                            config.maxAngleBetweenTrio * M_PI/180.0,
-                                            config.maxNormOnDist,
-                                            config.maskToggle);
+                                            config.maxAngle * M_PI/180.0);
 
   // Color detection parameter
   this->markerDetector.setOrangeParameter(config.OrangeHueHigh, config.OrangeSatHigh, config.OrangeValueHigh,
                                           config.OrangeHueLow,  config.OrangeSatLow,  config.OrangeValueLow);
-  this->markerDetector.setBlueParameter(config.BlueHueHigh, config.BlueSatHigh, config.BlueValueHigh,
-                                        config.BlueHueLow,  config.BlueSatLow,  config.BlueValueLow);
 
   ROS_INFO("Parameters changed");
 }

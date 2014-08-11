@@ -17,7 +17,7 @@ The Collaborative Drone Localization also require OpenCV and Eigen. They can be 
 
 To manualy control the drone with a gamepad we use `joy/joy_node`. It can be install and configure following [these instructions](http://wiki.ros.org/joy/Tutorials/ConfiguringALinuxJoystick).
 
-The [ardrone_autonomy] node is used as a bridge between the Parrot AR-Drone 2.0 and the ROS environment. It can be install by entering the following command. Assuming your are in the src directory of your catkin [workspace].
+The [ardrone_autonomy] node is used as a bridge between the Parrot AR-Drone 2.0 SDK and the ROS environment. It can be install by entering the following command. Assuming your are in the src directory of your catkin [workspace].
 ```shell
 cd ~/catkin_ws/src
 git clone https://github.com/AutonomyLab/ardrone_autonomy.git -b hydro-devel
@@ -32,18 +32,19 @@ The Collaborative Drone Localization require running multiple drones on the same
     + Unzip the `ARDroneSDK/ardrone-sdk-stripped-X.X.X.tgz`
     + Open width a text editor the `ARDroneLib/VP_SDK/VP_Com/vp_com_socket.c`
     + Around line 90 change the code to this:
-```c
+      ```c
 case VP_COM_SERVER:
     name.sin_addr.s_addr  = INADDR_ANY;
     
     int bind_err = bind( s, (struct sockaddr*)&name, sizeof(struct sockaddr));
     if (bind_err < 0 ){
-        //res = VP_COM_ERROR;
-        res = VP_COM_OK;
+	//res = VP_COM_ERROR;
+	res = VP_COM_OK;
     }
-```
+	```
     + Change the old `vp_com_socket.c` for the new one in your `ardrone-sdk-stripped-X.X.X.tgz`.
     + Recompile the SDK:
+
 ```Shell
 catkin_make clean
 catkin_make install
@@ -60,6 +61,19 @@ git clone https://github.com/MobileRobotics-Ulaval/CollaborativeDroneLocalizatio
 cd ..
 catkin_make
 ```
+
+#Launching demo#
+
+The demo launch file launches two instances of `dot_finder` and an instance of `particle_filter`. You need to manually download and play the demo's rosbag using the following commands:
+```Shell
+wget -c http://www.mediafire.com/download/5gz43oigpd3jdod/demo.bag
+rosbag play -l -d 1 demo.bag
+```
+In another terminal launch the demo's launch file:
+```Shell
+roslaunch drone_nav demo.launch 
+```
+In order to watch the demo, run [rqt](http://wiki.ros.org/rqt) and [rviz](http://wiki.ros.org/rviz) the correct perspective for both software are included at the root of this repository. To open the correct perspective in rqt, go to Perspectives->Import... and import "rqt_vision.perspective" at the root of this repository. To open the correct rviz configuration, in rviz go to File->Open Config and open "rviz_config.rviz". 
 
 #Node diagram#
 
@@ -91,10 +105,10 @@ This command will run a `drone_nav` instance that subscribes to a drone in the n
 
 ```xml
 <launch>
-  	<node name="drone_nav" pkg="drone_nav" type="drone_nav" output="screen">
+	<node name="drone_nav" pkg="drone_nav" type="drone_nav" output="screen">
 		<param name="topic" value="/mamba" />
 		<param name="_ctrl" value="6" />
-    </node>
+	</node>
 </launch>
 ```
 
@@ -109,7 +123,7 @@ This parameter corresponds to id of the deadman switch button.
 
 ##### Subscribed Topics #####
 `drone_nav` subscribes to the following topics:
- * <input namespace>/ardrone/navdata (ardrone_autonomy/Navdata)
+ * (input namespace)/ardrone/navdata (ardrone_autonomy/Navdata)
     
 The current state of the drone.
 
@@ -117,22 +131,22 @@ The current state of the drone.
 
 Command from the joystick.
 
- * <input namespace>/pose ([geometry_msgs/PoseStamped](http://docs.ros.org/api/geometry_msgs/html/msg/PoseStamped.html))
+ * (input namespace)/pose ([geometry_msgs/PoseStamped](http://docs.ros.org/api/geometry_msgs/html/msg/PoseStamped.html))
     
 Relative position from the leader to the follower generate by the `particule_filter`.
   
 ##### Published Topics #####
 
 `drone_nav` publishes to the following topics:
- * <input namespace>/ardrone/(reset|takeoff|land) ([std_msgs/Empty](http://docs.ros.org/api/std_msgs/html/msg/Empty.html))
+ * (input namespace)/ardrone/(reset|takeoff|land) ([std_msgs/Empty](http://docs.ros.org/api/std_msgs/html/msg/Empty.html))
 
 Message to command the reset, takeoof or landing to the drone.
 
- * <input namespace>/cmd_vel ([geometry_msgs/Twist](http://docs.ros.org/api/geometry_msgs/html/msg/Twist.html))
+ * (input namespace)/cmd_vel ([geometry_msgs/Twist](http://docs.ros.org/api/geometry_msgs/html/msg/Twist.html))
    
 Message to send the velocity command to the drone
 
- * <input namespace>/goal_marker ([visualization_msgs/Marker](http://docs.ros.org/api/visualization_msgs/html/msg/Marker.html))
+ * (input namespace)/goal_marker ([visualization_msgs/Marker](http://docs.ros.org/api/visualization_msgs/html/msg/Marker.html))
    
 Publish a marker representing the goal in Rviz.
 
@@ -149,10 +163,10 @@ This command will run a `dot_finder` instance that subscribes to a drone in the 
 ```xml
 <launch>
         <group ns="mamba">
-	      	<node name="dot_finder" pkg="dot_finder" type="dot_finder" output="screen">
-    			<param name="topic" value="/mamba" />
-    			<param name="ratio" value="0.5" />
-		    </node>
+		<node name="dot_finder" pkg="dot_finder" type="dot_finder" output="screen">
+			<param name="topic" value="/mamba" />
+			<param name="ratio" value="0.5" />
+		</node>
         </group>
 </launch>
 ```
@@ -161,7 +175,7 @@ This command will run a `dot_finder` instance that subscribes to a drone in the 
 The `dot_finder` node require some parameters to be set before launching
  * topic (string)
 
-Name of the drone's namespace. Every topic subscription/publication will replace <input namespace> by the content of this parameter.
+Name of the drone's namespace. Every topic subscription/publication will replace (input namespace) by the content of this parameter.
  * ratio (float32) suggested = 0.5
 
 At what percentage of a single marker is the point closest to the camera point. In order 0.5 means that the coplanar point is exactly at the center of two orange dots.
@@ -221,20 +235,20 @@ Erosion force during image processing. Augment this parameter when marker are cl
 
 ##### Subscribed Topics #####
 `dot_finder` subscribes to the following topics:
- * <input namespace>/ardrone/image_raw ([sensor_msgs/Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html))
+ * (input namespace)/ardrone/image_raw ([sensor_msgs/Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html))
     
 The image from the drone. The markers will be detected from this image.
 
- * <input namespace>/ardrone/camera_info ([sensor_msgs/CameraInfo](http://docs.ros.org/api/sensor_msgs/html/msg/CameraInfo.html))
+ * (input namespace)/ardrone/camera_info ([sensor_msgs/CameraInfo](http://docs.ros.org/api/sensor_msgs/html/msg/CameraInfo.html))
 
 The camera calibration parameters. It's mainly used to compensate the camera distortion.
   
 ##### Published Topics #####
 `dot_finder` publishes to the following topics:
- * <input namespace>/dots (dot_finder/DuoDot)
+ * (input namespace)/dots (dot_finder/DuoDot)
 
 The x, y position of the every potential marker extracted from the image.
- * <input namespace>/ardrone/image_with_detections ([sensor_msgs/Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html))
+ * (input namespace)/ardrone/image_with_detections ([sensor_msgs/Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html))
    
 A debugging visualization image of the computer vision.
 
@@ -250,11 +264,10 @@ This command will run a `particle_filter` instance that subscribes to two dot_fi
 
 ```xml
 <launch>
-        <node name="particle_filter" pkg="particle_filter" type="particle_filter" output="screen">
+	<node name="particle_filter" pkg="particle_filter" type="particle_filter" output="screen">
 		<param name="leader" value="/king" />
 		<param name="follower" value="/mamba" />
 	</node>
-
 </launch>
 ```
 
@@ -277,33 +290,33 @@ These parameters set the distance between the marker and the camera on the drone
 
 ##### Subscribed Topics #####
 `dot_finder` subscribes to the following topics:
- * <leader and follower namespace>/dots (dot_finder/DuoDot)
+ * (leader and follower namespace)/dots (dot_finder/DuoDot)
     
 The x, y positions of every marker hypothesis extracted from the image.
 
- * <leader and follower namespace>/ardrone/imu ([sensor_msgs/Imu](http://docs.ros.org/api/sensor_msgs/html/msg/Imu.html))
+ * (leader and follower namespace)/ardrone/imu ([sensor_msgs/Imu](http://docs.ros.org/api/sensor_msgs/html/msg/Imu.html))
 
 Imu information from the drone.
 
-* <leader and follower namespace>/ardrone/image_raw ([sensor_msgs/Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html))
+* (leader and follower namespace)/ardrone/image_raw ([sensor_msgs/Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html))
     
 The image from the front camera of the drone. Only use from visualization/debugging.
 
 ##### Published Topics #####
 `dot_finder` publishes to the following topics:
- * <follower namespace>/pose ([geometry_msgs/PoseStamped](http://docs.ros.org/api/geometry_msgs/html/msg/PoseStamped.html))
+ * (follower namespace)/pose ([geometry_msgs/PoseStamped](http://docs.ros.org/api/geometry_msgs/html/msg/PoseStamped.html))
 
 Relative pose in 6DoF of the follower.
 
- * <follower namespace>/pose_array_candidates ([geometry_msgs/PoseArray](http://docs.ros.org/api/geometry_msgs/html/msg/PoseArray.html))
+ * (follower namespace)/pose_array_candidates ([geometry_msgs/PoseArray](http://docs.ros.org/api/geometry_msgs/html/msg/PoseArray.html))
 
 Every hypothesis of the position of the follower.
 
- * <follower namespace>/pose ([geometry_msgs/PoseStamped](http://docs.ros.org/api/geometry_msgs/html/msg/PoseStamped.html))
+ * (follower namespace)/pose ([geometry_msgs/PoseStamped](http://docs.ros.org/api/geometry_msgs/html/msg/PoseStamped.html))
 
 Relative pose in 6DoF of the follower.
 
- * <leader and follower namespace>/ardrone/image_ROI ([sensor_msgs/Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html))
+ * (leader and follower namespace)/ardrone/image_ROI ([sensor_msgs/Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html))
    
 A debugging visualization image of Region of Interest.
 
@@ -313,7 +326,7 @@ A debugging visualization image of Region of Interest.
 [F710 Wireless Gamepad]:http://gaming.logitech.com/en-ca/product/f710-wireless-gamepad
 [remapping]:http://wiki.ros.org/joystick_remapper/Tutorials/UsingJoystickRemapper
 [RPG Monocular Pose Estimator]:https://github.com/uzh-rpg/rpg_monocular_pose_estimator
-[ROS website]:http://wiki.ros.org/hydro/Installation. 
+[ROS website]:http://wiki.ros.org/hydro/Installation 
 [OpenCV]:http://opencv.org/documentation.html
 [Eigen]:http://eigen.tuxfamily.org/index.php?title=Main_Page
 [workspace]:http://wiki.ros.org/catkin/Tutorials/create_a_workspace

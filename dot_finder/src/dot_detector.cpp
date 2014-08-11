@@ -30,27 +30,12 @@ void DotDetector::setOrangeParameter(const int pHighH, const int pHighS, const i
     this->lowSOrange  = pLowS;
     this->lowVOrange  = pLowV;
 }
-void DotDetector::setBlueParameter(const int pHighH, const int pHighS, const int pHighV,
-                                   const int pLowH,  const int pLowS,  const int pLowV){
-    this->highHBlue = pHighH;
-    this->highSBlue = pHighS;
-    this->highVBlue = pHighV;
-    this->lowHBlue  = pLowH;
-    this->lowSBlue  = pLowS;
-    this->lowVBlue  = pLowV;
-}
 
-void DotDetector::setDetectorParameter(const int pMin_radius, const int pMorph_type, const double pDilatation,
-                          const double pErosion, const double pMax_angle, const double pMax_angle_duo,
-                          const double pMax_norm_on_dist, const bool pMaskToggle){
-    this->min_radius = pMin_radius;
-    this->morph_type = pMorph_type;
+void DotDetector::setDetectorParameter(const double pDilatation,
+                          const double pErosion, const double pMax_angle){
     this->dilatation = pDilatation;
     this->erosion = pErosion;
     this->max_angle = pMax_angle;
-    this->max_angle_duo = pMax_angle_duo;
-    this->max_norm_on_dist = pMax_norm_on_dist;
-    this->maskToggle = pMaskToggle;
 
 }
 

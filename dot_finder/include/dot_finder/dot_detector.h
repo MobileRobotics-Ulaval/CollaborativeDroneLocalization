@@ -33,12 +33,8 @@ public:
     cv::Mat getVisualisationImg();
     void setOrangeParameter(const int pHighH, const int pHighS, const int pHighV,
                             const int pLowH,  const int pLowS,  const int pLowV);
-    void setBlueParameter(const int pHighH, const int pHighS, const int pHighV,
-                          const int pLowH,  const int pLowS,  const int pLowV);
-    void setDetectorParameter(const int min_radius, const int morph_type,
-                              const double dilatation, const double erosion, const double max_angle,
-                              const double max_angle_duo, const double max_norm_on_dist,
-                              const bool maskToggle);
+    void setDetectorParameter(const double pDilatation, const double pErosion,
+                              const double pMax_angle);
     void setCameraParameter(const cv::Mat pCameraMatrixK,
                             const cv::Mat pCameraMatrixP,
                             const std::vector<double> pCameraDistortionCoeffs);
@@ -92,17 +88,12 @@ private:
 
   cv::Mat visualisationImg;
   double highHOrange, highSOrange, highVOrange, lowHOrange, lowSOrange, lowVOrange;
-  double highHBlue, highSBlue, highVBlue, lowHBlue, lowSBlue, lowVBlue;
-  int min_radius, morph_type;
-  double dilatation, erosion, max_angle, max_angle_duo, max_norm_on_dist;
-  bool maskToggle;
+  double dilatation, erosion, max_angle;
 
   cv::Mat cameraMatrixK, cameraMatrixP;
   std::vector<double> cameraDistortionCoeffs;
 
-
   std::vector<std::map <std::string, double> > contoursFeatures;
-  //std::vector<double> keptRadius, keptArea;
   std::vector<cv::Point2f> contoursPosition;
   std::vector< std::vector<int> > trioStack;
 
