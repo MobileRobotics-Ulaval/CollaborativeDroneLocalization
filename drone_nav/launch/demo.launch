@@ -2,6 +2,6 @@
 	<include file="$(find dot_finder)/launch/king.launch"/>
 	<include file="$(find dot_finder)/launch/mamba.launch"/>
 	<include file="$(find particle_filter)/launch/default.launch"/>
-	<node pkg="rosbag" type="play" name="player" output="screen" args="-d 1 -l $(find drone_nav)/../bag/twoDrones/parfait-noCloud15h/inFrontForest.bag"/>
+	<!--<node pkg="rosbag" type="play" name="player" output="screen" args="-d 1 -l $(find drone_nav)/../bag/twoDrones/parfait-noCloud15h/inFrontForest.bag"/>-->
 </launch>
 

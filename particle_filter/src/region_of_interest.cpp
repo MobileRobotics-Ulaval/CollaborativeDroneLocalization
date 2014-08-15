@@ -31,7 +31,8 @@ void RegionOfInterest::filterCandidate(std::vector<Eigen::Vector2d> &left, std::
         this->setBoundaryAroundTarget(filteredLeft[0], filteredRight[0]);
     }
 
-    if(this->forgetCounter > this->MAX_FORGET){
+
+    if(this->forgetCounter > this->MAX_FORGET && !left.empty()){
         ROS_INFO("Forget current boundary, choose one at random");
         int r = rand() % left.size();
         this->setBoundaryAroundTarget(left[r], right[r]);

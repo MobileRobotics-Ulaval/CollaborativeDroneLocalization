@@ -6,6 +6,7 @@ namespace particle_filter
 {
 ParticleFilter::ParticleFilter(ros::NodeHandle n) : 
     nodeHandler(n),
+    leaderDotsInitiation(false),
     followerDotsInitiation(false),
     leaderImuInitiation(false),
     followerImuInitiation(false)
@@ -48,6 +49,8 @@ void ParticleFilter::createSubscribers(const string& topic_leader, const string&
     this->subVisualizationLeader = this->nodeHandler.subscribe(topic_leader + "/ardrone/image_raw", 1, &ParticleFilter::visualizationCallbackLeader, this);
     this->subVisualizationFollower = this->nodeHandler.subscribe(topic_follower + "/ardrone/image_raw", 1, &ParticleFilter::visualizationCallbackFollower, this);
 
+    this->subCameraInfo = this->nodeHandler.subscribe(topic_leader + "/ardrone/camera_info", 1, &ParticleFilter::cameraInfoCallback, this);
+
 }
 
 void ParticleFilter::leaderImuCallback(const sensor_msgs::Imu::ConstPtr& leaderImuMsg){
@@ -66,42 +69,54 @@ void ParticleFilter::followerImuCallback(const sensor_msgs::Imu::ConstPtr& follo
 void ParticleFilter::followerDotsCallback(const dot_finder::DuoDot::ConstPtr& follower_msg){
     if(!this->followerDotsInitiation)
         this->followerDotsInitiation = true;
-
     this->followerLastMsg = *follower_msg;
 
+
+    if(this->isAllMessageInitiated()){
+        this->runParticleFilter();
+    }
+
+
+    sensor_msgs::ImagePtr msg = this->visualization.generateROIVisualization(this->followerLastMsg.leftDistortDot,
+                                                                             this->followerLastMsg.rightDistortDot,
+                                                                             this->regionOfInterest[1].getCvRect(),
+                                                                             this->lastFollowerImgRaw);
+    this->pubROIFollower.publish(msg);
 }
 
 void ParticleFilter::leaderDotsCallback(const dot_finder::DuoDot::ConstPtr& leader_msg){
+    if(!this->leaderDotsInitiation)
+        this->leaderDotsInitiation = true;
     this->leaderLastMsg = *leader_msg;
 
     if(this->isAllMessageInitiated()){
         this->runParticleFilter();
        // this->generateCSVLog();
     }
+
+    sensor_msgs::ImagePtr msg = this->visualization.generateROIVisualization(this->leaderLastMsg.leftDistortDot,
+                                                                             this->leaderLastMsg.rightDistortDot,
+                                                                             this->regionOfInterest[0].getCvRect(),
+                                                                             this->lastLeaderImgRaw);
+    this->pubROILeader.publish(msg);
 }
 
 
 bool ParticleFilter::isAllMessageInitiated(){
-    return this->followerDotsInitiation && this->leaderImuInitiation && this->followerImuInitiation;
-}
-
-void ParticleFilter::updateCameraParametersFromLastMessage(){
-    Eigen::Vector2d fCam, pp;
-    fCam[0] =this->leaderLastMsg.fx; fCam[1] = this->leaderLastMsg.fy;
-    pp[0] = this->leaderLastMsg.px; pp[1] = this->leaderLastMsg.py;
-    this->poseEvaluator.setCameraParameters(fCam, pp);
+    return this->leaderDotsInitiation &&
+           this->followerDotsInitiation &&
+           this->leaderImuInitiation &&
+           this->followerImuInitiation;
 }
 
 void ParticleFilter::runParticleFilter(){
-    this->updateCameraParametersFromLastMessage();
-
     vector<Eigen::Vector2d> leaderLeftDot     = fromROSPoseArrayToVector2d(this->leaderLastMsg.leftDot);
     vector<Eigen::Vector2d> leaderRightDot    = fromROSPoseArrayToVector2d(this->leaderLastMsg.rightDot);
     vector<Eigen::Vector2d> followerLeftDot   = fromROSPoseArrayToVector2d(this->followerLastMsg.leftDot);
     vector<Eigen::Vector2d> followerRightDot  = fromROSPoseArrayToVector2d(this->followerLastMsg.rightDot);
 
-    this->regionOfInterest[0].filterCandidate(leaderLeftDot, leaderRightDot);
-    this->regionOfInterest[1].filterCandidate(followerLeftDot, followerRightDot);
+    //this->regionOfInterest[0].filterCandidate(leaderLeftDot, leaderRightDot);
+    //this->regionOfInterest[1].filterCandidate(followerLeftDot, followerRightDot);
 
     double weight;
     double best = -1;
@@ -139,6 +154,7 @@ void ParticleFilter::runParticleFilter(){
         this->pubPoseCandidates.publish(candidatesPoseMsgs);
     }
 }
+
 vector<Eigen::Vector2d> ParticleFilter::fromROSPoseArrayToVector2d(vector<geometry_msgs::Pose2D> ros_msg){
     vector<Eigen::Vector2d> eigenVectorArray;
     for(int i = 0; i < ros_msg.size(); i++){
@@ -150,60 +166,78 @@ vector<Eigen::Vector2d> ParticleFilter::fromROSPoseArrayToVector2d(vector<geomet
 /**
  * Visualization
  */
-
-
 void ParticleFilter::visualizationCallbackLeader(const sensor_msgs::Image::ConstPtr& image_msg){
-    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8);// MONO
-    sensor_msgs::ImagePtr msg = this->generateAndPublishROIVisualization(0, cv_ptr->image);
-    this->pubROILeader.publish(msg);
+    if(!this->haveCameraInfo)
+        return;
+
+    this->lastLeaderImgRaw = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8)->image;
 }
 
 void ParticleFilter::visualizationCallbackFollower(const sensor_msgs::Image::ConstPtr& image_msg){
-    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8);// MONO
-    sensor_msgs::ImagePtr msg = this->generateAndPublishROIVisualization(1, cv_ptr->image);
-    this->pubROIFollower.publish(msg);
+    if(!this->haveCameraInfo)
+        return;
+
+    this->lastFollowerImgRaw = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8)->image;
 }
 
-vector<cv::Point2f> ParticleFilter::fromROSPoseArrayToCvPoint(vector<geometry_msgs::Pose2D> ros_msg){
-    vector<cv::Point2f> openCvVectorArray;
-    for(int i = 0; i < ros_msg.size(); i++){
-        openCvVectorArray.push_back(cv::Point2f(ros_msg[i].x, ros_msg[i].y));
+
+
+
+void ParticleFilter::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg){
+    if (!this->haveCameraInfo){
+        sensor_msgs::CameraInfo camInfo = *msg;
+
+        // Calibrated camera
+        Eigen::Matrix<double, 3, 4> cameraProjectionMatrix;
+        cameraProjectionMatrix(0, 0) = camInfo.P[0];
+        cameraProjectionMatrix(0, 2) = camInfo.P[2];
+        cameraProjectionMatrix(1, 1) = camInfo.P[5];
+        cameraProjectionMatrix(1, 2) = camInfo.P[6];
+        cameraProjectionMatrix(2, 2) = 1.0;
+
+
+        cv::Mat cameraMatrixK = cv::Mat(3, 3, CV_64F);
+        cv::Mat cameraMatrixP = cv::Mat(3, 4, CV_64F);
+
+        cameraMatrixK.at<double>(0, 0) = camInfo.K[0];
+        cameraMatrixK.at<double>(0, 1) = camInfo.K[1];
+        cameraMatrixK.at<double>(0, 2) = camInfo.K[2];
+        cameraMatrixK.at<double>(1, 0) = camInfo.K[3];
+        cameraMatrixK.at<double>(1, 1) = camInfo.K[4];
+        cameraMatrixK.at<double>(1, 2) = camInfo.K[5];
+        cameraMatrixK.at<double>(2, 0) = camInfo.K[6];
+        cameraMatrixK.at<double>(2, 1) = camInfo.K[7];
+        cameraMatrixK.at<double>(2, 2) = camInfo.K[8];
+        std::vector<double> cameraDistortionCoeffs = camInfo.D;
+        cameraMatrixP.at<double>(0, 0) = camInfo.P[0];
+        cameraMatrixP.at<double>(0, 1) = camInfo.P[1];
+        cameraMatrixP.at<double>(0, 2) = camInfo.P[2];
+        cameraMatrixP.at<double>(0, 3) = camInfo.P[3];
+        cameraMatrixP.at<double>(1, 0) = camInfo.P[4];
+        cameraMatrixP.at<double>(1, 1) = camInfo.P[5];
+        cameraMatrixP.at<double>(1, 2) = camInfo.P[6];
+        cameraMatrixP.at<double>(1, 3) = camInfo.P[7];
+        cameraMatrixP.at<double>(2, 0) = camInfo.P[8];
+        cameraMatrixP.at<double>(2, 1) = camInfo.P[9];
+        cameraMatrixP.at<double>(2, 2) = camInfo.P[10];
+        cameraMatrixP.at<double>(2, 3) = camInfo.P[11];
+
+        this->haveCameraInfo = true;
+        ROS_INFO("Camera calibration information obtained.");
+
+        Eigen::Vector2d focal, center;
+        focal[0] = cameraMatrixK.at<double>(0, 0);
+        focal[1] = cameraMatrixK.at<double>(1, 1);
+
+        center[0] = cameraMatrixK.at<double>(0, 2);
+        center[1] = cameraMatrixK.at<double>(1, 2);
+        this->poseEvaluator.setCameraParameters(focal, center);
+
+        this->visualization.setCameraParameter(cameraMatrixK,
+                                               cameraMatrixP,
+                                               cameraProjectionMatrix,
+                                               cameraDistortionCoeffs);
     }
-    return openCvVectorArray;
-}
-
-sensor_msgs::ImagePtr ParticleFilter::generateAndPublishROIVisualization(int idROI, cv::Mat &img){
-    this->drawDistortedMarker(idROI, img);
-    this->drawRegionOfInterest(idROI, img);
-
-    cv_bridge::CvImage visualized_image_msg;
-    visualized_image_msg.encoding = sensor_msgs::image_encodings::BGR8;
-    visualized_image_msg.image = img;
-
-    return visualized_image_msg.toImageMsg();
-}
-
-void ParticleFilter::drawDistortedMarker(int idROI, cv::Mat &img){
-    vector<cv::Point2f> leftDot, rightDot;
-    if(idROI == 0){
-        leftDot  = fromROSPoseArrayToCvPoint(this->leaderLastMsg.leftDot);
-        rightDot = fromROSPoseArrayToCvPoint(this->leaderLastMsg.rightDot);
-    }
-    else{
-        leftDot  = fromROSPoseArrayToCvPoint(this->followerLastMsg.leftDot);
-        rightDot = fromROSPoseArrayToCvPoint(this->followerLastMsg.rightDot);
-    }
-    for(int i = 0; i < leftDot.size(); i++){
-        cv::circle(img, leftDot[i], 2, CV_RGB(173, 33, 96), 2);
-        cv::circle(img, rightDot[i], 2, CV_RGB(173, 33, 96), 2);
-
-        cv::line(img, leftDot[i], rightDot[i], CV_RGB(255, 0, 0), 2);
-    }
-}
-
-void ParticleFilter::drawRegionOfInterest(int idROI, cv::Mat &img){
-    cv::Rect ROI = this->regionOfInterest[idROI].getCvRect();
-    cv::rectangle(img, ROI, CV_RGB(0, 0, 255), 2);
 }
 
 /**

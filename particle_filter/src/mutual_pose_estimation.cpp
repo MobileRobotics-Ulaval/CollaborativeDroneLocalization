@@ -21,7 +21,7 @@ void MutualPoseEstimation::setCameraParameters(const Eigen::Vector2d pFocalCam, 
 
 visualization_msgs::Marker MutualPoseEstimation::generateMarkerMessage(const Eigen::Vector3d &position, Eigen::Matrix3d rotation, const double alpha){
     visualization_msgs::Marker marker;
-    marker.header.frame_id = "ardrone_base_link";
+    marker.header.frame_id = "ardrone_base_frontcam";
     marker.header.stamp = ros::Time();
     marker.id = 0;
     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
@@ -39,17 +39,24 @@ visualization_msgs::Marker MutualPoseEstimation::generateMarkerMessage(const Eig
 
 
     // The camera is 21cm in front of the center of the drone
-    marker.pose.position.x = position[2] + 0.21;
-    marker.pose.position.y = -position[0];
-    marker.pose.position.z = -position[1];
+//    marker.pose.position.x = position[2] + 0.21;
+//    marker.pose.position.y = -position[0];
+//    marker.pose.position.z = -position[1];
+    marker.pose.position.x = position[0] + 0.21;
+    marker.pose.position.y = position[1];
+    marker.pose.position.z = position[2];
 
     rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ())
                * rotation;
 
     Eigen::Quaterniond q = Eigen::Quaterniond(rotation);
-    marker.pose.orientation.x = q.z();
-    marker.pose.orientation.y = -q.x();
-    marker.pose.orientation.z = -q.y();
+//    marker.pose.orientation.x = q.z();
+//    marker.pose.orientation.y = -q.x();
+//    marker.pose.orientation.z = -q.y();
+//    marker.pose.orientation.w = q.w();
+    marker.pose.orientation.x = q.x();
+    marker.pose.orientation.y = q.y();
+    marker.pose.orientation.z = q.z();
     marker.pose.orientation.w = q.w();
 
     return marker;
@@ -58,19 +65,26 @@ visualization_msgs::Marker MutualPoseEstimation::generateMarkerMessage(const Eig
 geometry_msgs::PoseStamped MutualPoseEstimation::generatePoseMessage(const Eigen::Vector3d &position, Eigen::Matrix3d rotation){
 
     geometry_msgs::PoseStamped estimated_position;
-    estimated_position.header.frame_id = "ardrone_base_link";
+    estimated_position.header.frame_id = "ardrone_base_frontcam";//ardrone_base_link
 
-    estimated_position.pose.position.x = position[2] + 0.21; // z
-    estimated_position.pose.position.y = -position[0];  // x
-    estimated_position.pose.position.z = -position[1]; //-y
+    //estimated_position.pose.position.x = position[2] + 0.21; // z
+    //estimated_position.pose.position.y = -position[0];  // x
+    //estimated_position.pose.position.z = -position[1]; //-y
+    estimated_position.pose.position.x = position[0] + 0.21;
+    estimated_position.pose.position.y = position[1];
+    estimated_position.pose.position.z = position[2];
 
     rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ())
                * rotation;
 
     Eigen::Quaterniond q = Eigen::Quaterniond(rotation);
-    estimated_position.pose.orientation.x = q.z();
-    estimated_position.pose.orientation.y = -q.x();
-    estimated_position.pose.orientation.z = -q.y();
+//    estimated_position.pose.orientation.x = q.z();
+//    estimated_position.pose.orientation.y = -q.x();
+//    estimated_position.pose.orientation.z = -q.y();
+//    estimated_position.pose.orientation.w = q.w();
+    estimated_position.pose.orientation.x = q.x();
+    estimated_position.pose.orientation.y = q.y();
+    estimated_position.pose.orientation.z = q.z();
     estimated_position.pose.orientation.w = q.w();
     return estimated_position;
 }
@@ -82,14 +96,21 @@ double MutualPoseEstimation::comparePoseABtoBA(const Eigen::Vector2d &pixelA1, c
 
     Eigen::Matrix3d rotationBA;
     Eigen::Vector3d positionBA;
-    this->compute3DMutualLocalisation(pixelA1, pixelA2,
-                                      pixelB1, pixelB2,
+    Eigen::Vector2d lPixelA1 = -(pixelA1 - this->centerCam);
+    Eigen::Vector2d lPixelA2 = -(pixelA2 - this->centerCam);
+    Eigen::Vector2d lPixelB1 = -(pixelB1 - this->centerCam);
+    Eigen::Vector2d lPixelB2 = -(pixelB2 - this->centerCam);
+    Eigen::Vector2d notDOTHAT = this->centerCam;
+
+    this->compute3DMutualLocalisation(lPixelA1, lPixelA2,
+                                      lPixelB1, lPixelB2,
                                       positionAB, rotationAB);
 
 
-    this->compute3DMutualLocalisation(pixelB1, pixelB2,
-                                      pixelA1, pixelA2,
+    this->compute3DMutualLocalisation(lPixelB1, lPixelB2,
+                                      lPixelA1, lPixelA2,
                                       positionBA, rotationBA);
+    this->centerCam = notDOTHAT;
     double distanceError = positionAB.norm() - positionBA.norm();
     return distanceError;
 }
@@ -200,6 +221,18 @@ void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pi
   Eigen::Matrix3d AlignVectors = vrrotvec2mat(AngleAlignABwBA, AxisAlignABwBA);
 
   rotation =  AlignVectors * AlignPlans;
+
+  //Correction of the depth error:
+  if(false){
+      Eigen::Vector3d s_a(0, 0, 0.03); // 3 cm back from the plane
+      double s_a_norm = s_a.norm();
+      double distance = position.norm();
+
+      double angle_error = acos( position.dot(s_a) / (distance*s_a_norm) );
+      ROS_INFO("Errr: %f",angle_error);
+
+      position = s_a_norm*cos(angle_error)*position/distance;
+  }
 }
 
 Eigen::Vector2d MutualPoseEstimation::computePositionMutual(double alpha, double beta, double d){

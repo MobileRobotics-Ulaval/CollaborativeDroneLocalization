@@ -52,7 +52,7 @@ void DotFinder::createPublishers(){
 }
 
 void DotFinder::createSubscribers(){
-   this->subImage = this->nodeHandle.subscribe(this->topic + "/ardrone/image_raw", 100, &DotFinder::imageCallback, this);
+   this->subImage = this->nodeHandle.subscribe(this->topic + "/ardrone/image_raw", 1, &DotFinder::imageCallback, this);
    this->subCameraInfo = this->nodeHandle.subscribe(this->topic + "/ardrone/camera_info", 1, &DotFinder::cameraInfoCallback, this);
 }
 
@@ -165,12 +165,11 @@ void DotFinder::publishDetectedDot(cv::Mat &image){
                                            this->regionOfInterest);
 
   if(dots_hypothesis_undistorted.size() == 0){
-    ROS_WARN("No LED detected");
+    ROS_WARN("No marker detected");
   }
-  else{
-      dot_finder::DuoDot msg = this->generateDotHypothesisMessage(dots_hypothesis_undistorted);
-      this->pubDotHypothesis.publish(msg);
-  }
+
+  dot_finder::DuoDot msg = this->generateDotHypothesisMessage(dots_hypothesis_undistorted);
+  this->pubDotHypothesis.publish(msg);
   
 }
 
@@ -187,16 +186,16 @@ dot_finder::DuoDot DotFinder::generateDotHypothesisMessage(std::vector< std::vec
       position_in_image.x = pDots[i][1].x;
       position_in_image.y = pDots[i][1].y;
       duoDot_msg_to_publish.rightDot.push_back(position_in_image);
+
+      // distort
+      position_in_image.x = this->dotsHypothesisDistorted[i][0].x; position_in_image.y = this->dotsHypothesisDistorted[i][0].y;
+      duoDot_msg_to_publish.leftDistortDot.push_back(position_in_image);
+
+      position_in_image.x = this->dotsHypothesisDistorted[i][1].x; position_in_image.y = this->dotsHypothesisDistorted[i][1].y;
+      duoDot_msg_to_publish.rightDistortDot.push_back(position_in_image);
     }
 
     duoDot_msg_to_publish.header.stamp = ros::Time::now();
-    duoDot_msg_to_publish.topicName = this->topic;
-    // We also publish the focal length
-    duoDot_msg_to_publish.fx = this->cameraMatrixK.at<double>(0, 0);
-    duoDot_msg_to_publish.fy = this->cameraMatrixK.at<double>(1, 1);
-
-    duoDot_msg_to_publish.px = this->cameraMatrixK.at<double>(0, 2);
-    duoDot_msg_to_publish.py = this->cameraMatrixK.at<double>(1, 2);
     return duoDot_msg_to_publish;
 }
 

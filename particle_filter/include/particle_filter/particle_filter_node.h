@@ -31,6 +31,7 @@
 
 
 
+#include <particle_filter/visualization.h>
 #include <particle_filter/region_of_interest.h>
 #include <particle_filter/mutual_pose_estimation.h>
 
@@ -47,6 +48,7 @@ public:
 
 	void visualizationCallbackLeader(const sensor_msgs::Image::ConstPtr& image_msg);
 	void visualizationCallbackFollower(const sensor_msgs::Image::ConstPtr& image_msg);
+	void cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg);
 
     void generateCSVLog();
 
@@ -57,17 +59,21 @@ private:
     std::vector<cv::Point2f> fromROSPoseArrayToCvPoint(std::vector<geometry_msgs::Pose2D> ros_msg);
     void runParticleFilter();
     bool isAllMessageInitiated();
-    void updateCameraParametersFromLastMessage();
 
-    sensor_msgs::ImagePtr generateAndPublishROIVisualization(int idROI, cv::Mat &img);
-    void drawDistortedMarker(int idROI, cv::Mat &img);
-    void drawRegionOfInterest(int idROI, cv::Mat &img);
-
-    bool followerDotsInitiation;
+    bool leaderDotsInitiation, followerDotsInitiation;
     bool leaderImuInitiation, followerImuInitiation;
     dot_finder::DuoDot leaderLastMsg, followerLastMsg;
     sensor_msgs::Imu leaderImuMsg, followerImuMsg;
     RegionOfInterest regionOfInterest[2];
+
+    cv::Mat lastLeaderImgRaw, lastFollowerImgRaw;
+    Visualization visualization;
+
+
+    bool haveCameraInfo;
+    sensor_msgs::CameraInfo camInfo;
+    cv::Mat cameraMatrixK;
+    Eigen::Matrix<double, 3, 4> cameraProjectionMatrix;
 
     geometry_msgs::PoseArray candidatesPoseMsgs;
 
@@ -79,6 +85,7 @@ private:
     ros::Subscriber subImuFollower;
     ros::Subscriber subVisualizationLeader;
     ros::Subscriber subVisualizationFollower;
+    ros::Subscriber subCameraInfo;
 
     ros::Publisher pubPose;
     ros::Publisher pubMarker;

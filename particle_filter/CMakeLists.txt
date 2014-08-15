@@ -46,11 +46,12 @@ include_directories(
 add_executable(particle_filter
   cfg/ParticleFilter.cfg
 
-
-  include/particle_filter/particle_filter_node.h 
-  include/particle_filter/mutual_pose_estimation.h
+  include/particle_filter/visualization.h
   include/particle_filter/region_of_interest.h
+  include/particle_filter/mutual_pose_estimation.h
+  include/particle_filter/particle_filter_node.h
 
+  src/visualization.cpp
   src/region_of_interest.cpp
   src/particle_filter_node.cpp 
   src/mutual_pose_estimation.cpp

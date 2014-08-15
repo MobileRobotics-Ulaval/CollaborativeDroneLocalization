@@ -16,9 +16,9 @@
 
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
- 
+
 #include <iostream>
-#include <sstream> 
+#include <sstream>
 
 namespace dot_finder
 {

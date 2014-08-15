@@ -32,7 +32,7 @@ The Collaborative Drone Localization require running multiple drones on the same
     + Unzip the `ARDroneSDK/ardrone-sdk-stripped-X.X.X.tgz`
     + Open width a text editor the `ARDroneLib/VP_SDK/VP_Com/vp_com_socket.c`
     + Around line 90 change the code to this:
-      ```c
+```c
 case VP_COM_SERVER:
     name.sin_addr.s_addr  = INADDR_ANY;
     
@@ -41,9 +41,9 @@ case VP_COM_SERVER:
 	//res = VP_COM_ERROR;
 	res = VP_COM_OK;
     }
-	```
-    + Change the old `vp_com_socket.c` for the new one in your `ardrone-sdk-stripped-X.X.X.tgz`.
-    + Recompile the SDK:
+```
+ + Change the old `vp_com_socket.c` for the new one in your `ardrone-sdk-stripped-X.X.X.tgz`.
+ + Recompile the SDK:
 
 ```Shell
 catkin_make clean
@@ -178,13 +178,13 @@ The `dot_finder` node require some parameters to be set before launching
 Name of the drone's namespace. Every topic subscription/publication will replace (input namespace) by the content of this parameter.
  * ratio (float32) suggested = 0.5
 
-At what percentage of a single marker is the point closest to the camera point. In order 0.5 means that the coplanar point is exactly at the center of two orange dots.
+At what percentage of a single marker is the point closest to the camera point. A ratio of 0.5 means that the coplanar points are exactly at the center of two orange dots.
 
 
 ##### Dynamic parameters settings #####
 The following parameters can be set dynamically during runtime. (Use `rqt_reconfigure` to adjust the parameters).
 
-* Orange<Hue|Sat|Value><Low|high>
+* Orange(Hue|Sat|Value)(Low|high)
 
 These parameters change the color HSV thresholding. The default parameters are set for an outdoor environment.
 
@@ -194,7 +194,7 @@ These parameters change the color HSV thresholding. The default parameters are s
 Toggle the debugging information add to the visualization image.
 
 * trioToggle (bool, default: True)
-
+ 
 Toggle the trio (One marker with two oranges dot and one blue dot).
 
 * duoToggle (bool, default: True)
@@ -247,7 +247,7 @@ The camera calibration parameters. It's mainly used to compensate the camera dis
 `dot_finder` publishes to the following topics:
  * (input namespace)/dots (dot_finder/DuoDot)
 
-The x, y position of the every potential marker extracted from the image.
+The x, y position of every potential marker extracted from the image.
  * (input namespace)/ardrone/image_with_detections ([sensor_msgs/Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html))
    
 A debugging visualization image of the computer vision.
@@ -275,15 +275,15 @@ This command will run a `particle_filter` instance that subscribes to two dot_fi
 The `particule_filter` node require some parameters to be set before launching
  * leader (string)
 
-Name of the leader's namespace. Every topic subscription/publication will replace <leader namespace> by the content of this 
+Name of the leader's namespace. Every topic subscription/publication will replace <leader namespace> by the content of this parameter.
  * follower (string)
 
-Name of the follower's namespace. Every topic subscription/publication will replace <follower namespace> by the content of this 
+Name of the follower's namespace. Every topic subscription/publication will replace <follower namespace> by the content of this parameter.
 
 ##### Dynamic parameters settings #####
 The following parameters can be set dynamically during runtime. (Use `rqt_reconfigure` to adjust the parameters).
 
-* pos_left_led_cam_a|pos_left_led_cam_b|pos_left_right_cam_a|pos_right_led_cam_b (double, default: 0.19, min: 0, max: 2)
+* pos_XXXX_led_cam_x (double, default: 0.19, min: 0, max: 2)
 
 These parameters set the distance between the marker and the camera on the drone in meter.
 *These values are always positive.*
@@ -300,7 +300,7 @@ Imu information from the drone.
 
 * (leader and follower namespace)/ardrone/image_raw ([sensor_msgs/Image](http://docs.ros.org/api/sensor_msgs/html/msg/Image.html))
     
-The image from the front camera of the drone. Only use from visualization/debugging.
+The image from the front camera of the drone. Only use for visualization/debugging.
 
 ##### Published Topics #####
 `dot_finder` publishes to the following topics:
