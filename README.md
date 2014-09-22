@@ -64,9 +64,8 @@ catkin_make
 
 #Launching demo#
 
-The demo launch file launches two instances of `dot_finder` and an instance of `particle_filter`. You need to manually download and play the demo's rosbag using the following commands:
+The demo launch file launches two instances of `dot_finder` and an instance of `particle_filter`. You need to manually download (http://www.mediafire.com/download/5gz43oigpd3jdod/demo.bag) and play the demo's rosbag using the following commands:
 ```Shell
-wget -c http://www.mediafire.com/download/5gz43oigpd3jdod/demo.bag
 rosbag play -l -d 1 demo.bag
 ```
 In another terminal launch the demo's launch file:
