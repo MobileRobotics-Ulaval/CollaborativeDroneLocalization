@@ -52,7 +52,7 @@ void DotFinder::createPublishers(){
 }
 
 void DotFinder::createSubscribers(){
-   this->subImage = this->nodeHandle.subscribe(this->topic + "/ardrone/image_raw", 1, &DotFinder::imageCallback, this);
+   this->subImage = this->nodeHandle.subscribe(this->topic + "/ardrone/image_raw", 150, &DotFinder::imageCallback, this);
    this->subCameraInfo = this->nodeHandle.subscribe(this->topic + "/ardrone/camera_info", 1, &DotFinder::cameraInfoCallback, this);
 }
 
@@ -138,7 +138,7 @@ void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
     return;
   }
 
-  if(!this->trainingToggle){
+  if(!this->trainingToggle/* && false*/){
       this->publishDetectedDot(cv_ptr->image);
       this->publishVisualizationImage(image_msg);
   }

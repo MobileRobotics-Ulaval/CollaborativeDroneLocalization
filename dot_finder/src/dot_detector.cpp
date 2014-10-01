@@ -295,25 +295,29 @@ void DotDetector::extractImageTrio(vector< vector<cv::Point2f> > & trio_distorte
             length =  cv::norm(p);
 
             minRadius = std::min(radiusI, radiusJ);
-            if(length*0.6 - minRadius - 7  > 0) continue; // Minimun Radius in function of norm
+            ROS_INFO("(%d <=> %d)", i, j);
+            ROS_INFO("length: %f minRadius: %f", length, minRadius);
+            //Doesn't work at close range for some reason...
+            //if(length*0.6 - 12  > minRadius){ROS_INFO("Fail 1"); continue;} // Minimun Radius in function of norm
 
             //NOT TESTED IN MATHLAB
-            if(atan(abs(p.y/p.x)) < max_angle) continue; // Angle thresholding
+            if(atan(abs(p.y/p.x)) < max_angle){ROS_INFO("Fail 2"); continue;} // Angle thresholding
 
             maxRadius = std::max(radiusI, radiusJ);
             dRadius = abs(maxRadius-minRadius);
-            if(length*2.6 - dRadius -14 < 0 || dRadius > 10) continue; // Difference min/maxRadius function of norm
+            if(length*2.6 - dRadius -14 < 0 /*|| dRadius > 10*/){ROS_INFO("Fail 3"); continue;} // Difference min/maxRadius function of norm
 
             areaJ = this->contoursFeatures[j]["area"];
             minArea = std::min(areaI, areaJ);
             maxArea = std::max(areaI, areaJ);
-            if(length*8.2 - abs(maxArea-minArea) -41 < 0) continue; // Difference min/maxArea function of norm
+            if(length*8.2 - abs(maxArea-minArea) -41 < 0){ROS_INFO("Fail 4"); continue;} // Difference min/maxArea function of norm
 
-            if(length*6 - minArea -30 < 0) continue; // Minium Area in function of norm
+            if(length*length*0.2 - minArea + 30 < 0){ROS_INFO("Fail 5"); continue;} // Minium Area in function of norm
 
             double minHeight = std::min(this->contoursFeatures[i]["heigth"], this->contoursFeatures[j]["heigth"]);
             double minWidth  = std::min(this->contoursFeatures[i]["width"], this->contoursFeatures[j]["width"]);
-            if(length*0.1 - minHeight-minWidth -4.3 > 0) continue; // Difference width/Height in function of norm
+            //Doesn't at really close range
+            //if(length*0.1 - (minHeight-minWidth) + 4.3 < 0){ROS_INFO("Fail 6"); continue;} // Difference width/Height in function of norm
 
             // We add the trio to the stack
             trio.clear();
@@ -321,6 +325,7 @@ void DotDetector::extractImageTrio(vector< vector<cv::Point2f> > & trio_distorte
             trio.push_back(j);      // Second Orange dot
             trioStack.push_back(trio);
 
+            ROS_INFO("SUCCESS");
 
             // For visualization
             feature_visualization.clear();
@@ -381,8 +386,9 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringTrio(){
             float normJ = norm(topJ - botJ);
             normMax = std::max(normI, normJ);
 
-            if(normMax*5 - distance + 23  < 0) continue; // Distance in function of the norm Higher plane
-            if(normMax*1.7 - distance + 24  > 0) continue; // Distance in function of the norm Lower plane
+
+            if(normMax * 7 - distance + 15  < 0) continue; // Distance in function of the norm Higher plane
+            if(normMax * 1.7 - distance + 24  > 0) continue; // Distance in function of the norm Lower plane
             //ROS_INFO("(%i+%i)=>(%i+%i)",idIA +1, idIB +1, idJA + 1, idJB + 1);
 
             /*centerAngle = atan(abs(centerV.y / centerV.x)) - atan(abs((trioSegmentI).x / (trioSegmentI).y));
@@ -411,7 +417,8 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringTrio(){
             float maxAngle = max(angleI, angleJ);
             if(-maxAngle - betweenAngle + 1.77 < 0) continue; // Angle in between in function of maxAngle
 
-            if(abs(std::min(normI,normJ) - std::max(normI,normJ)) > 5) continue; // Difference min/maxNorm thresholding
+            //if(abs(std::min(normI,normJ) - std::max(normI,normJ)) > 5) continue; // Difference min/maxNorm thresholding
+            if(1.5*distance - 8 - abs(std::min(normI,normJ) - std::max(normI,normJ)) < 0) continue; // Difference min/maxNorm thresholding
 
 
             if(max(angleI, angleJ) < 1.32) continue; // MaxAngle thresholding
