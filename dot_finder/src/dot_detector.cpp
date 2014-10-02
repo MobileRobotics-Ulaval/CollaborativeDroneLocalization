@@ -301,18 +301,18 @@ void DotDetector::extractImageTrio(vector< vector<cv::Point2f> > & trio_distorte
             //if(length*0.6 - 12  > minRadius){ROS_INFO("Fail 1"); continue;} // Minimun Radius in function of norm
 
             //NOT TESTED IN MATHLAB
-            if(atan(abs(p.y/p.x)) < max_angle){ROS_INFO("Fail 2"); continue;} // Angle thresholding
+            if(atan(abs(p.y/p.x)) < max_angle)continue; // Angle thresholding
 
             maxRadius = std::max(radiusI, radiusJ);
             dRadius = abs(maxRadius-minRadius);
-            if(length*2.6 - dRadius -14 < 0 /*|| dRadius > 10*/){ROS_INFO("Fail 3"); continue;} // Difference min/maxRadius function of norm
+            if(length*2.6 - dRadius -14 < 0 /*|| dRadius > 10*/)continue; // Difference min/maxRadius function of norm
 
             areaJ = this->contoursFeatures[j]["area"];
             minArea = std::min(areaI, areaJ);
             maxArea = std::max(areaI, areaJ);
-            if(length*8.2 - abs(maxArea-minArea) -41 < 0){ROS_INFO("Fail 4"); continue;} // Difference min/maxArea function of norm
+            if(length*8.2 - abs(maxArea-minArea) -41 < 0) continue; // Difference min/maxArea function of norm
 
-            if(length*length*0.2 - minArea + 30 < 0){ROS_INFO("Fail 5"); continue;} // Minium Area in function of norm
+            if(length*length*0.2 - minArea + 30 < 0) continue; // Minium Area in function of norm
 
             double minHeight = std::min(this->contoursFeatures[i]["heigth"], this->contoursFeatures[j]["heigth"]);
             double minWidth  = std::min(this->contoursFeatures[i]["width"], this->contoursFeatures[j]["width"]);
