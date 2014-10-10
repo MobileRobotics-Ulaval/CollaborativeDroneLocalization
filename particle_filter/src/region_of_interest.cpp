@@ -13,9 +13,10 @@ RegionOfInterest::RegionOfInterest():
     forgetCounter(0){
 }
 
-void RegionOfInterest::filterCandidate(std::vector<Eigen::Vector2d> &left, std::vector<Eigen::Vector2d> &right){
-    std::vector<Eigen::Vector2d> filteredLeft;
-    std::vector<Eigen::Vector2d> filteredRight;
+void RegionOfInterest::filterCandidate(ListVector2d &left,
+                                       ListVector2d &right){
+    ListVector2d filteredLeft;
+    ListVector2d filteredRight;
 
     for(int i = 0; i < left.size(); i++){
         if(this->hit(left[i], right[i])){

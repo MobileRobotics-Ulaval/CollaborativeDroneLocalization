@@ -4,8 +4,11 @@ using namespace std;
 
 namespace particle_filter
 {
+
+
 ParticleFilter::ParticleFilter(ros::NodeHandle n) : 
     nodeHandler(n),
+    haveCameraInfo(false),
     leaderDotsInitiation(false),
     followerDotsInitiation(false),
     leaderImuInitiation(false),
@@ -110,10 +113,10 @@ bool ParticleFilter::isAllMessageInitiated(){
 }
 
 void ParticleFilter::runParticleFilter(){
-    vector<Eigen::Vector2d> leaderLeftDot     = fromROSPoseArrayToVector2d(this->leaderLastMsg.leftDot);
-    vector<Eigen::Vector2d> leaderRightDot    = fromROSPoseArrayToVector2d(this->leaderLastMsg.rightDot);
-    vector<Eigen::Vector2d> followerLeftDot   = fromROSPoseArrayToVector2d(this->followerLastMsg.leftDot);
-    vector<Eigen::Vector2d> followerRightDot  = fromROSPoseArrayToVector2d(this->followerLastMsg.rightDot);
+    ListVector2d leaderLeftDot     = fromROSPoseArrayToVector2d(this->leaderLastMsg.leftDot);
+    ListVector2d leaderRightDot    = fromROSPoseArrayToVector2d(this->leaderLastMsg.rightDot);
+    ListVector2d followerLeftDot   = fromROSPoseArrayToVector2d(this->followerLastMsg.leftDot);
+    ListVector2d followerRightDot  = fromROSPoseArrayToVector2d(this->followerLastMsg.rightDot);
 
     //this->regionOfInterest[0].filterCandidate(leaderLeftDot, leaderRightDot);
     //this->regionOfInterest[1].filterCandidate(followerLeftDot, followerRightDot);
@@ -155,8 +158,8 @@ void ParticleFilter::runParticleFilter(){
     }
 }
 
-vector<Eigen::Vector2d> ParticleFilter::fromROSPoseArrayToVector2d(vector<geometry_msgs::Pose2D> ros_msg){
-    vector<Eigen::Vector2d> eigenVectorArray;
+ListVector2d ParticleFilter::fromROSPoseArrayToVector2d(vector<geometry_msgs::Pose2D> ros_msg){
+    ListVector2d eigenVectorArray;
     for(int i = 0; i < ros_msg.size(); i++){
         eigenVectorArray.push_back(Eigen::Vector2d(ros_msg[i].x, ros_msg[i].y));
     }

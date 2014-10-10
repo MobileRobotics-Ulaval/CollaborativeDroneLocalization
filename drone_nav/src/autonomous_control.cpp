@@ -17,8 +17,8 @@ void AutonomousControl::generateCommand(geometry_msgs::Twist &pTwistMsg,
     direction[2] = 0;
 
     // If the distance is larger than the goal Radius
-    if(direction.norm() >= GOAL_RADIUS){
-        direction = 0.2 * direction/direction.norm();
+    if(direction.norm() >= this->goalRadius){
+        direction = 0.15 * direction/direction.norm();
 
         // Make it a matrix calculation?
         direction[0] = -(-direction[0]*cos(yaw) - direction[1]*sin(yaw));
@@ -65,9 +65,9 @@ visualization_msgs::Marker AutonomousControl::generateGoalMarkerMessage(){
     marker.id = 0;
     marker.type = visualization_msgs::Marker::SPHERE;
     marker.action = visualization_msgs::Marker::ADD;
-    marker.scale.x = this->GOAL_RADIUS;
-    marker.scale.y = this->GOAL_RADIUS;
-    marker.scale.z = this->GOAL_RADIUS;
+    marker.scale.x = this->goalRadius;
+    marker.scale.y = this->goalRadius;
+    marker.scale.z = this->goalRadius;
     marker.color.a = 1;
     marker.color.r = 0.0;
     marker.color.g = 0.0;
@@ -123,3 +123,10 @@ geometry_msgs::PoseStamped AutonomousControl::getPoseStampedFromEigenVector3d(Ei
     return poseMsg;
 }
 
+double AutonomousControl::getGoalRadius(){
+    return this->goalRadius;
+}
+
+void AutonomousControl::setGoalRadius(double pGoalRadius){
+    this->goalRadius = pGoalRadius;
+}

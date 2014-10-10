@@ -96,24 +96,14 @@ double MutualPoseEstimation::comparePoseABtoBA(const Eigen::Vector2d &pixelA1, c
 
     Eigen::Matrix3d rotationBA;
     Eigen::Vector3d positionBA;
-//    Eigen::Vector2d lPixelA1 = -(pixelA1 - this->centerCam);
-//    Eigen::Vector2d lPixelA2 = -(pixelA2 - this->centerCam);
-//    Eigen::Vector2d lPixelB1 = -(pixelB1 - this->centerCam);
-//    Eigen::Vector2d lPixelB2 = -(pixelB2 - this->centerCam);
-    Eigen::Vector2d lPixelA1 = pixelA1;
-    Eigen::Vector2d lPixelA2 = pixelA2;
-    Eigen::Vector2d lPixelB1 = pixelB1;
-    Eigen::Vector2d lPixelB2 = pixelB2;
-    //Eigen::Vector2d notDOTHAT = this->centerCam;
-    //this->centerCam = Eigen::Vector2d(0,0);
 
-    this->compute3DMutualLocalisation(lPixelA1, lPixelA2,
-                                      lPixelB1, lPixelB2,
+    this->compute3DMutualLocalisation(pixelA1, pixelA2,
+                                      pixelB1, pixelB2,
                                       positionAB, rotationAB);
 
 
-    this->compute3DMutualLocalisation(lPixelB1, lPixelB2,
-                                      lPixelA1, lPixelA2,
+    this->compute3DMutualLocalisation(pixelB1, pixelB2,
+                                      pixelA1, pixelA2,
                                       positionBA, rotationBA);
     //this->centerCam = notDOTHAT;
     double distanceError = positionAB.norm() - positionBA.norm();
@@ -176,7 +166,7 @@ void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pi
   PB12.normalize();
   double phi = acos(PB12[0]);
   double beta = 0.5f * M_PI - phi;
-  printf("Beta: %f\n",beta* 180.f/M_PI);
+  //printf("Beta: %f\n",beta* 180.f/M_PI);
 
   Eigen::Vector2d plane = MutualPoseEstimation::computePositionMutual(alpha, beta, d);
 

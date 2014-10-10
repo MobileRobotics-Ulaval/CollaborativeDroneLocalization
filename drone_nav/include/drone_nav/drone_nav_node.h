@@ -69,6 +69,7 @@ private:
 
     AutonomousControl autoCtrl;
 
+    ros::Time lastPoseReceived;
 };
 
 #endif // DRONE_NAV_H

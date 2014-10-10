@@ -24,6 +24,8 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <Eigen/StdVector>
+
 
 #include <dynamic_reconfigure/server.h>
 #include <particle_filter/ParticleFilterConfig.h>
@@ -37,6 +39,9 @@
 
 namespace particle_filter
 {
+
+typedef  std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d> > ListVector2d;
+
 class ParticleFilter{
 public:
 	ParticleFilter(ros::NodeHandle n);
@@ -55,7 +60,7 @@ public:
 private:
     void createPublishers(const std::string& topic_leader, const std::string& topic_follower);
     void createSubscribers(const std::string& topic_leader, const std::string& topic_follower);
-    std::vector<Eigen::Vector2d> fromROSPoseArrayToVector2d(std::vector<geometry_msgs::Pose2D> ros_msg);
+    ListVector2d fromROSPoseArrayToVector2d(std::vector<geometry_msgs::Pose2D> ros_msg);
     std::vector<cv::Point2f> fromROSPoseArrayToCvPoint(std::vector<geometry_msgs::Pose2D> ros_msg);
     void runParticleFilter();
     bool isAllMessageInitiated();

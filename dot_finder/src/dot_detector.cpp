@@ -19,7 +19,7 @@ using namespace std;
 namespace dot_finder
 {
 
-typedef Eigen::Matrix<Eigen::Vector2d, Eigen::Dynamic, 1> List2DPoints; //!< A dynamic column vector containing Vector2D elements. \see Vector2d
+
 
 void DotDetector::setOrangeParameter(const int pHighH, const int pHighS, const int pHighV,
                                      const int pLowH,  const int pLowS,  const int pLowV){
@@ -86,6 +86,11 @@ void DotDetector::resizeRegionOfInterest(const int colsImg, const int rowsImg, c
         ROI = cv::Rect(ROI.x, ROI.y, ROI.width, rowsImg - ROI.y);
 }
 
+
+/*************************************************************************************
+ Detect duo of marker with almost no filtering, so it can later be convert to a Mathlab compatible file format.
+ *************************************************************************************/
+
 void DotDetector::trainingDataAcquiring(const cv::Mat &image,
                                         std::vector< std::vector<cv::Point2f> > & trio_distorted){
     cv::Rect ROI(0,0, image.cols, image.rows);
@@ -99,7 +104,7 @@ void DotDetector::trainingDataAcquiring(const cv::Mat &image,
     trioStack.clear();
     trio_distorted.clear();
 
-    this->findImageFeature(orangeMask, ROI);
+    this->extractContourAndFeatureFromImage(orangeMask, ROI);
 
     cv::Point2f p0, p;
     double distBetweenContour;
@@ -192,7 +197,9 @@ bool DotDetector::isOutOfRangeDot(int id){
     return id < 0 || id >= this->trioStack.size();
 }
 
-//Todo add pParameter
+/*******************************************
+            Markers extraction
+ *******************************************/
 void DotDetector::dotFilteringArDrone(const cv::Mat &image,
                                       std::vector< std::vector<cv::Point2f> > & trio_distorted,
                                       std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted,
@@ -209,13 +216,13 @@ void DotDetector::dotFilteringArDrone(const cv::Mat &image,
     // TODO Need to become attribute
     trio_distorted.clear();
 
-    this->findImageFeature(orangeMask, ROI);
+    this->extractContourAndFeatureFromImage(orangeMask, ROI);
     //printf("\n");
 
-    this->extractImageTrio(trio_distorted);
+    this->extractPairFromContour(trio_distorted);
     printf("\n");
 
-    dot_hypothesis_distorted = this->paringTrio();
+    dot_hypothesis_distorted = this->paringBlobPair();
     dot_hypothesis_undistorted = this->removeCameraDistortion(dot_hypothesis_distorted);
 }
 
@@ -231,7 +238,7 @@ void DotDetector::colorThresholdingDilateErode(cv::Mat &image){
 }
 
 
-void DotDetector::findImageFeature(const cv::Mat &image, cv::Rect ROI){
+void DotDetector::extractContourAndFeatureFromImage(const cv::Mat &image, cv::Rect ROI){
     //this->keptArea.clear();
     this->contoursPosition.clear();
     this->contoursFeatures.clear();
@@ -271,7 +278,7 @@ void DotDetector::findImageFeature(const cv::Mat &image, cv::Rect ROI){
     }
 }
 
-void DotDetector::extractImageTrio(vector< vector<cv::Point2f> > & trio_distorted){
+void DotDetector::extractPairFromContour(vector< vector<cv::Point2f> > & trio_distorted){
     vector<int> trio;
     std::vector<cv::Point2f> feature_visualization;
     this->trioStack.clear();
@@ -338,7 +345,7 @@ void DotDetector::extractImageTrio(vector< vector<cv::Point2f> > & trio_distorte
 
 }
 
-std::vector<std::vector<cv::Point2f> > DotDetector::paringTrio(){
+std::vector<std::vector<cv::Point2f> > DotDetector::paringBlobPair(){
 
     std::vector<cv::Point2f> feature_visualization;
     std::vector< std::vector<cv::Point2f> > pairedTrio;

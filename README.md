@@ -98,7 +98,7 @@ The `drone_nav` node controls a flying drone either with manual control from a j
 #### How to launch ####
 To run in command line without launch file dot_finder enter the following command:
 ```shell
-rosrun drone_nav dronenav _ctrl:=6 _topic:="/mamba"
+rosrun drone_nav dronenav _ctrl:=6 _topic:="/mamba" _goal_radius:=0.75
 ```
 This command will run a `drone_nav` instance that subscribes to a drone in the namespace "mamba" and with the deadman switch set to the button number 6. The same action can be done with the following [launch file](http://wiki.ros.org/roslaunch/XML):
 
@@ -106,7 +106,8 @@ This command will run a `drone_nav` instance that subscribes to a drone in the n
 <launch>
 	<node name="drone_nav" pkg="drone_nav" type="drone_nav" output="screen">
 		<param name="topic" value="/mamba" />
-		<param name="_ctrl" value="6" />
+		<param name="ctrl" value="6" />
+		<param name="goal_radius" value="0.75" />
 	</node>
 </launch>
 ```
@@ -119,6 +120,9 @@ Name of the drone's namespace.
  * ctrl (int)
 
 This parameter corresponds to id of the deadman switch button.
+ * goal_radius (double)
+
+Radius of the position goal.
 
 ##### Subscribed Topics #####
 `drone_nav` subscribes to the following topics:

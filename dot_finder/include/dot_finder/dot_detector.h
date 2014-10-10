@@ -30,14 +30,6 @@ typedef Eigen::Matrix<Eigen::Vector2d, Eigen::Dynamic, 1> List2DPoints;
 class DotDetector
 {
 public:
-    cv::Mat getVisualisationImg();
-    void setOrangeParameter(const int pHighH, const int pHighS, const int pHighV,
-                            const int pLowH,  const int pLowS,  const int pLowV);
-    void setDetectorParameter(const double pDilatation, const double pErosion,
-                              const double pMax_angle);
-    void setCameraParameter(const cv::Mat pCameraMatrixK,
-                            const cv::Mat pCameraMatrixP,
-                            const std::vector<double> pCameraDistortionCoeffs);
   /**
    * Detects the duo of markers in the image and returns their positions in the rectified image and also draws circles around the detected marker in an output image.
    *
@@ -60,6 +52,16 @@ public:
                            std::vector< std::vector<cv::Point2f> > & trio_distorted,
                            std::vector< std::vector<cv::Point2f> > & dot_hypothesis_distorted, std::vector< std::vector<cv::Point2f> > & dot_hypothesis_undistorted,
                            cv::Rect ROI);
+
+  void setOrangeParameter(const int pHighH, const int pHighS, const int pHighV,
+                          const int pLowH,  const int pLowS,  const int pLowV);
+  void setDetectorParameter(const double pDilatation, const double pErosion,
+                            const double pMax_angle);
+  void setCameraParameter(const cv::Mat pCameraMatrixK,
+                          const cv::Mat pCameraMatrixP,
+                          const std::vector<double> pCameraDistortionCoeffs);
+
+  cv::Mat getVisualisationImg();
 /**
   * Detect duo of marker with almost no filtering, so it can later be convert to a Mathlab compatible file format.
   */
@@ -67,6 +69,12 @@ public:
                              std::vector< std::vector<cv::Point2f> > & trio_distorted);
   void saveToCSV(std::vector<int> trioPositive);
 private:
+  // Training private Method
+  std::string generateDataLine(uint64_t time,
+                               std::vector<int> contoursId);
+  bool isOutOfRangeDot(int id);
+
+
   void doColorThresholding(cv::Mat & image,
                          const int pHighH, const int pHighS, const int pHighV,
                          const int pLowH,  const int pLowS,  const int pLowV);
@@ -76,15 +84,11 @@ private:
   void resizeRegionOfInterest(const int colsImg, const int rowsImg, cv::Rect & ROI);
 
   void colorThresholdingDilateErode(cv::Mat &image);
-  void findImageFeature(const cv::Mat &image, cv::Rect ROI);
-  void extractImageTrio(std::vector< std::vector<cv::Point2f> > & trio_distorted);
-  std::vector<std::vector<cv::Point2f> > paringTrio();
+  void extractContourAndFeatureFromImage(const cv::Mat &image, cv::Rect ROI);
+  void extractPairFromContour(std::vector< std::vector<cv::Point2f> > & trio_distorted);
+  std::vector<std::vector<cv::Point2f> > paringBlobPair();
   std::vector< std::vector<cv::Point2f> > removeCameraDistortion(std::vector< std::vector<cv::Point2f> > & distortedPoints);
 
-  // Training private Method
-  std::string generateDataLine(uint64_t time,
-                               std::vector<int> contoursId);
-  bool isOutOfRangeDot(int id);
 
   cv::Mat visualisationImg;
   double highHOrange, highSOrange, highVOrange, lowHOrange, lowSOrange, lowVOrange;

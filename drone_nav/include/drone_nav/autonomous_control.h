@@ -21,6 +21,9 @@ public:
     void setGoal(const geometry_msgs::Pose &pPose);
     geometry_msgs::PoseStamped getGoal();
     geometry_msgs::PoseStamped getPoseStampedFromEigenVector3d(Eigen::Vector3d pVect);
+
+    double getGoalRadius();
+    void setGoalRadius(double pGoalRadius);
 private:
     void generateTwistMessage(geometry_msgs::Twist &pTwistMsg,
                               const Eigen::Vector3d &pDirection);
@@ -31,7 +34,8 @@ private:
     Eigen::Vector3d getDroneCenterPostionFromCameraPosition(const geometry_msgs::Point &pCamPositionMsg,
                                                             const double &pYaw);
 
-    static const double GOAL_RADIUS = 0.7;
+
+    double goalRadius = 0.7;
     static const double MAX_SPEED = 0.2;
     Eigen::Vector3d goalPosition;
 };

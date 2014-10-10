@@ -11,6 +11,11 @@ DroneNav::DroneNav(ros::NodeHandle nodeHandle) : nodeHandle(nodeHandle)
     ros::param::get("~topic", topic); // _topic:="/cobra" when rosrun node
     ros::param::get("~ctrl", this->deadManSwitch); // _ctrl:=4 or 6
 
+    int goal_radius;
+    ros::param::get("~goal_radius", goal_radius); // _ctrl:=4 or 6
+    this->autoCtrl.setGoalRadius(goal_radius);
+
+
     if(this->deadManSwitch > 11 || this->deadManSwitch < 0)
     {
         ROS_INFO("=== Default Parameter ===");
@@ -32,7 +37,7 @@ DroneNav::DroneNav(ros::NodeHandle nodeHandle) : nodeHandle(nodeHandle)
 
 void DroneNav::setGoal(){
     geometry_msgs::Pose goal;
-    goal.position.x = 4;
+    goal.position.x = 2.625;
     this->autoCtrl.setGoal(goal);
 }
 
@@ -45,18 +50,30 @@ void DroneNav::loop()
     int tickCount = 0;
     int maxCount = 20000;
 
+    lastPoseReceived = ros::Time::now();
     while(ros::ok())
     {
-        this->getDroneState(tickCount, maxCount);
+       if(this->button["Y"] && (ros::Time::now() - lastPoseReceived > ros::Duration(10)))
+       {
+           this->pubLand.publish(std_msgs::Empty());
+       }
+       if(this->button["Y"] && (ros::Time::now() - lastPoseReceived > ros::Duration(1)))
+       {
+           this->poseInitiated = false;
+           geometry_msgs::Twist level; //level our velocity
+           this->pubTwist.publish(level);
+       }
 
-        this->takeoffObserver(loopRate);
-        this->landingObserver(loopRate);
-        this->resetObserver(loopRate);
-        this->flatTrimObserver();
-        this->controlObserver();
+       this->getDroneState(tickCount, maxCount);
 
-        ros::spinOnce();
-        loopRate.sleep();
+       this->takeoffObserver(loopRate);
+       this->landingObserver(loopRate);
+       this->resetObserver(loopRate);
+       this->flatTrimObserver();
+       this->controlObserver();
+
+       ros::spinOnce();
+       loopRate.sleep();
     }
 }
 
@@ -85,6 +102,7 @@ void DroneNav::navCallback(const ardrone_autonomy::Navdata& navMsg)
 
 void DroneNav::poseCallback(const geometry_msgs::PoseStamped& poseMsg)
 {
+    lastPoseReceived = ros::Time::now();
     this->poseData = poseMsg;
     if(!this->poseInitiated)
     {
