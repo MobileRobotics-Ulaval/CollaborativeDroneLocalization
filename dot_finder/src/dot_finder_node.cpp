@@ -23,11 +23,20 @@ namespace dot_finder
  * Constructor of the Dot finder Node class
  *
  */
-DotFinder::DotFinder():trainingToggle(false)
+DotFinder::DotFinder():
+    trainingToggle(false),
+    haveCameraInfo(false)
 {
   // Generate the name of the publishing and subscribing topics
   ros::param::get("~topic", this->topic);
   string training;
+
+  // The old shell had 1.5 (The position of the dot is under the marker)
+  // the new one is 0.5 (Between the two orange dot)
+  double ratioDotOnCameraPlan;
+  ros::param::get("~ratio", ratioDotOnCameraPlan);
+  this->markerDetector.setRatioDotOnCameraPlan(ratioDotOnCameraPlan);
+
   ros::param::get("~training", training);
   if(training == "on"){
       trainingToggle = true;
@@ -52,7 +61,7 @@ void DotFinder::createPublishers(){
 }
 
 void DotFinder::createSubscribers(){
-   this->subImage = this->nodeHandle.subscribe(this->topic + "/ardrone/image_raw", 150, &DotFinder::imageCallback, this);
+   this->subImage = this->nodeHandle.subscribe(this->topic + "/ardrone/image_raw", 1, &DotFinder::imageCallback, this);
    this->subCameraInfo = this->nodeHandle.subscribe(this->topic + "/ardrone/camera_info", 1, &DotFinder::cameraInfoCallback, this);
 }
 
@@ -65,10 +74,10 @@ DotFinder::~DotFinder(){}
  * \param msg the ROS message containing the camera calibration information
  *
  */
-void DotFinder::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg){
+void DotFinder::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& pMsg){
   if (!this->haveCameraInfo)
   {
-    this->camInfo = *msg;
+    this->camInfo = *pMsg;
 
     // Calibrated camera
     Eigen::Matrix<double, 3, 4> camera_matrix;
@@ -119,7 +128,7 @@ void DotFinder::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg)
  *
  * \param image_msg the ROS message containing the image to be processed
  */
-void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
+void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& pImageMsg)
 {
 
   // Check whether already received the camera calibration data
@@ -131,7 +140,7 @@ void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
   // Import the image from ROS message to OpenCV mat
   cv_bridge::CvImagePtr cv_ptr;
   try{
-    cv_ptr = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR16);// MONO
+    cv_ptr = cv_bridge::toCvCopy(pImageMsg, sensor_msgs::image_encodings::BGR16);// MONO
   }
   catch (cv_bridge::Exception& e){
     ROS_ERROR("cv_bridge exception: %s", e.what());
@@ -139,15 +148,15 @@ void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
   }
 
   if(!this->trainingToggle/* && false*/){
-      this->publishDetectedDot(cv_ptr->image);
-      this->publishVisualizationImage(image_msg);
+      this->detectAndPublishMarkers(cv_ptr->image);
+      this->publishVisualizationImage(pImageMsg->header);
   }
-  else{
+  else{// If we are acquiring data
       this->saveDetectedData(cv_ptr->image);
-      this->publishVisualizationImage(image_msg);
+      this->publishVisualizationImage(pImageMsg->header);
 
-      vector<int> trio_positive = this->getHumanInputTrueFinding();
-      this->markerDetector.saveToCSV(trio_positive);
+      vector<int> pair_positive = this->getHumanInputTrueFinding();
+      this->markerDetector.saveToCSV(pair_positive);
   }
 }
 
@@ -155,11 +164,13 @@ void DotFinder::imageCallback(const sensor_msgs::Image::ConstPtr& image_msg)
 
 /**
  * Detect, filter and publish markers.
+ *
+ * \param image contain the markers to extract
  */
-void DotFinder::publishDetectedDot(cv::Mat &image){
+void DotFinder::detectAndPublishMarkers(cv::Mat &pImage){
   std::vector< std::vector<cv::Point2f> > dots_hypothesis_undistorted;
-  this->markerDetector.dotFilteringArDrone(image,
-                                           this->trioDistorted,
+  this->markerDetector.dotFilteringArDrone(pImage,
+                                           this->pairDistorted,
                                            this->dotsHypothesisDistorted,
                                            dots_hypothesis_undistorted,
                                            this->regionOfInterest);
@@ -188,10 +199,12 @@ dot_finder::DuoDot DotFinder::generateDotHypothesisMessage(std::vector< std::vec
       duoDot_msg_to_publish.rightDot.push_back(position_in_image);
 
       // distort
-      position_in_image.x = this->dotsHypothesisDistorted[i][0].x; position_in_image.y = this->dotsHypothesisDistorted[i][0].y;
+      position_in_image.x = this->dotsHypothesisDistorted[i][0].x;
+      position_in_image.y = this->dotsHypothesisDistorted[i][0].y;
       duoDot_msg_to_publish.leftDistortDot.push_back(position_in_image);
 
-      position_in_image.x = this->dotsHypothesisDistorted[i][1].x; position_in_image.y = this->dotsHypothesisDistorted[i][1].y;
+      position_in_image.x = this->dotsHypothesisDistorted[i][1].x;
+      position_in_image.y = this->dotsHypothesisDistorted[i][1].y;
       duoDot_msg_to_publish.rightDistortDot.push_back(position_in_image);
     }
 
@@ -201,16 +214,19 @@ dot_finder::DuoDot DotFinder::generateDotHypothesisMessage(std::vector< std::vec
 
 /**
  * The visualization creator and publisher.
+ *
+ * \param image_msg the ROS message containing the image to be processed
  */
-void DotFinder::publishVisualizationImage(const sensor_msgs::Image::ConstPtr& image_msg){
+void DotFinder::publishVisualizationImage(const std_msgs::Header& pHeaderMsg){
   cv::Mat image;
+  // Convert to color image for visualisation
   cv::cvtColor(this->markerDetector.getVisualisationImg() , image, CV_GRAY2BGR);
   if(this->infoToggle)
-       Visualization::createVisualizationImage(image, this->dotsHypothesisDistorted, trioDistorted, regionOfInterest, duoToggle, trioToggle);
-  // Convert to color image for visualisation
+       Visualization::createVisualizationImage(image, this->dotsHypothesisDistorted, pairDistorted, regionOfInterest, duoToggle, pairToggle);
+
   // Publish image for visualization
   cv_bridge::CvImage visualized_image_msg;
-  visualized_image_msg.header = image_msg->header;
+  visualized_image_msg.header = pHeaderMsg;
   visualized_image_msg.encoding = sensor_msgs::image_encodings::BGR8; //BGR8
   visualized_image_msg.image = image;
 
@@ -219,7 +235,7 @@ void DotFinder::publishVisualizationImage(const sensor_msgs::Image::ConstPtr& im
 
 
 vector<int> DotFinder::getHumanInputTrueFinding(){
-    vector<int> trio_positive;
+    vector<int> pair_positive;
     string str;
     int id;
     bool flag = true;
@@ -229,7 +245,7 @@ vector<int> DotFinder::getHumanInputTrueFinding(){
         getline (cin, str);
         stringstream stream(str);
         if(stream >> id){
-            trio_positive.push_back(id);
+            pair_positive.push_back(id);
             cout << id << " added." << endl;
         }
         else{
@@ -239,50 +255,50 @@ vector<int> DotFinder::getHumanInputTrueFinding(){
             }
             else if(str == "c"){
                 cout << "Clear previous statements" << endl;
-                trio_positive.clear();
+                pair_positive.clear();
             }
             else{
-                cout << "Invalide input!" << endl;
+                cout << "Invalid input!" << endl;
             }
         }
     }
 
-    return trio_positive;
+    return pair_positive;
 }
 
-void DotFinder::saveDetectedData(cv::Mat &image){
-    this->markerDetector.trainingDataAcquiring(image,
-                                               this->trioDistorted);
+void DotFinder::saveDetectedData(cv::Mat &pImage){
+    this->markerDetector.trainingDataAcquiring(pImage,
+                                               this->pairDistorted);
 }
 
 
 /**
  * The dynamic reconfigure callback function. This function updates the variable within the program whenever they are changed using dynamic reconfigure.
  */
-void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &config, uint32_t level){
+void DotFinder::dynamicParametersCallback(dot_finder::DotFinderConfig &pConfig, uint32_t pLevel){
   // Visualization Parameters
   // TODO but them into visualization object
-  this->infoToggle = config.infoToggle;
-  this->duoToggle  = config.duoToggle;
-  this->trioToggle = config.trioToggle;
+  this->infoToggle = pConfig.infoToggle;
+  this->duoToggle  = pConfig.duoToggle;
+  this->pairToggle = pConfig.pairToggle;
   //this->trainingToggle = config.trainingToggle;
 
   // ROI Parameters
-  if(config.toggleROI){
-     regionOfInterest = cv::Rect(config.xROI, config.yROI, config.wROI, config.hROI);
+  if(pConfig.toggleROI){
+     regionOfInterest = cv::Rect(pConfig.xROI, pConfig.yROI, pConfig.wROI, pConfig.hROI);
   }
   else{
      regionOfInterest = cv::Rect(0, 0, 640, 360);
   }
 
   // Detector Parameters
-  this->markerDetector.setDetectorParameter(config.dilation_size,
-                                            config.erosion_size,
-                                            config.maxAngle * M_PI/180.0);
+  this->markerDetector.setDetectorParameter(pConfig.dilation_size,
+                                            pConfig.erosion_size,
+                                            pConfig.maxAngle * M_PI/180.0);
 
   // Color detection parameter
-  this->markerDetector.setOrangeParameter(config.OrangeHueHigh, config.OrangeSatHigh, config.OrangeValueHigh,
-                                          config.OrangeHueLow,  config.OrangeSatLow,  config.OrangeValueLow);
+  this->markerDetector.setOrangeParameter(pConfig.OrangeHueHigh, pConfig.OrangeSatHigh, pConfig.OrangeValueHigh,
+                                          pConfig.OrangeHueLow,  pConfig.OrangeSatLow,  pConfig.OrangeValueLow);
 
   ROS_INFO("Parameters changed");
 }
@@ -298,4 +314,3 @@ int main(int argc, char* argv[])
   ros::spin();
   return 0;
 }
-// lol

@@ -20,6 +20,9 @@ namespace dot_finder
 {
 
 
+void DotDetector::setRatioDotOnCameraPlan(double pRatioDotOnCameraPlan){
+    this->ratioDotOnCameraPlan = pRatioDotOnCameraPlan;
+}
 
 void DotDetector::setOrangeParameter(const int pHighH, const int pHighS, const int pHighV,
                                      const int pLowH,  const int pLowS,  const int pLowV){
@@ -101,7 +104,7 @@ void DotDetector::trainingDataAcquiring(const cv::Mat &image,
     this->visualisationImg = orangeMask;
 
     // TODO Need to become attribute
-    trioStack.clear();
+    pairStack.clear();
     trio_distorted.clear();
 
     this->extractContourAndFeatureFromImage(orangeMask, ROI);
@@ -127,14 +130,14 @@ void DotDetector::trainingDataAcquiring(const cv::Mat &image,
             trio.clear();
             trio.push_back(i);      // First Orange dot
             trio.push_back(j);      // Second Orange dot
-            trioStack.push_back(trio);
+            pairStack.push_back(trio);
 
 
             // For visualization
             feature_visualization.clear();
             feature_visualization.push_back(this->contoursPosition[i]); // First Orange dot
             feature_visualization.push_back(this->contoursPosition[j]); // Second Orange dot
-            feature_visualization.push_back(cv::Point2f(trioStack.size() - 1, j));     // DEBUG FOR VISUALISATION
+            feature_visualization.push_back(cv::Point2f(pairStack.size() - 1, j));     // DEBUG FOR VISUALISATION
             trio_distorted.push_back(feature_visualization);
         }
     }
@@ -149,9 +152,9 @@ void DotDetector::saveToCSV(vector<int> trioPositive){
 
     ofstream myfile;
     myfile.open(filename_neg.c_str(), ios::app);
-    for(int i = 0; i < this->trioStack.size(); i++){
+    for(int i = 0; i < this->pairStack.size(); i++){
         if(std::find(trioPositive.begin(), trioPositive.end(), i) == trioPositive.end()){
-            myfile << this->generateDataLine(time, trioStack[i]);
+            myfile << this->generateDataLine(time, pairStack[i]);
         }
 
     }
@@ -162,7 +165,7 @@ void DotDetector::saveToCSV(vector<int> trioPositive){
     for(int i = 0; i < trioPositive.size(); i++){
         int id = trioPositive[i];
         if(!isOutOfRangeDot(id)){
-            myfile << this->generateDataLine(time, this->trioStack[id]);
+            myfile << this->generateDataLine(time, this->pairStack[id]);
         }
     }
     myfile.close();
@@ -194,7 +197,7 @@ string DotDetector::generateDataLine(uint64_t time, std::vector<int> contoursId)
 }
 
 bool DotDetector::isOutOfRangeDot(int id){
-    return id < 0 || id >= this->trioStack.size();
+    return id < 0 || id >= this->pairStack.size();
 }
 
 /*******************************************
@@ -249,8 +252,6 @@ void DotDetector::extractContourAndFeatureFromImage(const cv::Mat &image, cv::Re
     std::vector<std::vector<cv::Point> > contours;
     cv::findContours(image(ROI).clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
-    int DataIndex = 1;
-
     // Identify the blobs in the image
     for (unsigned i = 0; i < contours.size(); i++)
     {
@@ -281,7 +282,7 @@ void DotDetector::extractContourAndFeatureFromImage(const cv::Mat &image, cv::Re
 void DotDetector::extractPairFromContour(vector< vector<cv::Point2f> > & trio_distorted){
     vector<int> trio;
     std::vector<cv::Point2f> feature_visualization;
-    this->trioStack.clear();
+    this->pairStack.clear();
     float length,
             areaI, areaJ,
             radiusI, radiusJ, dRadius,
@@ -302,8 +303,8 @@ void DotDetector::extractPairFromContour(vector< vector<cv::Point2f> > & trio_di
             length =  cv::norm(p);
 
             minRadius = std::min(radiusI, radiusJ);
-            ROS_INFO("(%d <=> %d)", i, j);
-            ROS_INFO("length: %f minRadius: %f", length, minRadius);
+            //ROS_INFO("(%d <=> %d)", i, j);
+            //ROS_INFO("length: %f minRadius: %f", length, minRadius);
             //Doesn't work at close range for some reason...
             //if(length*0.6 - 12  > minRadius){ROS_INFO("Fail 1"); continue;} // Minimun Radius in function of norm
 
@@ -321,8 +322,8 @@ void DotDetector::extractPairFromContour(vector< vector<cv::Point2f> > & trio_di
 
             if(length*length*0.2 - minArea + 30 < 0) continue; // Minium Area in function of norm
 
-            double minHeight = std::min(this->contoursFeatures[i]["heigth"], this->contoursFeatures[j]["heigth"]);
-            double minWidth  = std::min(this->contoursFeatures[i]["width"], this->contoursFeatures[j]["width"]);
+            //double minHeight = std::min(this->contoursFeatures[i]["heigth"], this->contoursFeatures[j]["heigth"]);
+            //double minWidth  = std::min(this->contoursFeatures[i]["width"], this->contoursFeatures[j]["width"]);
             //Doesn't at really close range
             //if(length*0.1 - (minHeight-minWidth) + 4.3 < 0){ROS_INFO("Fail 6"); continue;} // Difference width/Height in function of norm
 
@@ -330,9 +331,7 @@ void DotDetector::extractPairFromContour(vector< vector<cv::Point2f> > & trio_di
             trio.clear();
             trio.push_back(i);      // First Orange dot
             trio.push_back(j);      // Second Orange dot
-            trioStack.push_back(trio);
-
-            ROS_INFO("SUCCESS");
+            pairStack.push_back(trio);
 
             // For visualization
             feature_visualization.clear();
@@ -349,10 +348,6 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringBlobPair(){
 
     std::vector<cv::Point2f> feature_visualization;
     std::vector< std::vector<cv::Point2f> > pairedTrio;
-    double ratioDotOnCameraPlan;
-    // The old shell had 1.5 (The position of the dot is under the marker)
-    // the new one is 0.5 (Between the two orange dot)
-    ros::param::get("~ratio", ratioDotOnCameraPlan);
 
     // TODO Use eigen instead of cv or use norm?
     cv::Point2f topI, botI, topJ, botJ;
@@ -361,10 +356,10 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringBlobPair(){
     cv::Point2f trioSegmentI, trioSegmentJ;
     float  normI, normMax, distance;
     // Each trio is pair with another one
-    for(int i = 0; i < trioStack.size(); i++){
-        int idIA = trioStack[i][0];
-        int idIB = trioStack[i][1];
-        if(this->contoursPosition[trioStack[i][0]].y  < this->contoursPosition[trioStack[i][1]].y){
+    for(int i = 0; i < pairStack.size(); i++){
+        int idIA = pairStack[i][0];
+        int idIB = pairStack[i][1];
+        if(this->contoursPosition[pairStack[i][0]].y  < this->contoursPosition[pairStack[i][1]].y){
             topI = this->contoursPosition[idIA];
             botI = this->contoursPosition[idIB];
         }
@@ -375,9 +370,9 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringBlobPair(){
         trioSegmentI = topI - botI;
         centerI = trioSegmentI * 0.5 + botI;
         normI = norm(trioSegmentI);
-        for(int j = i + 1; j < trioStack.size(); j++){
-            int idJA = trioStack[j][0];
-            int idJB = trioStack[j][1];
+        for(int j = i + 1; j < pairStack.size(); j++){
+            int idJA = pairStack[j][0];
+            int idJB = pairStack[j][1];
             if(this->contoursPosition[idJA].y  < this->contoursPosition[idJB].y){
                 topJ = this->contoursPosition[idJA];
                 botJ = this->contoursPosition[idJB];
@@ -453,7 +448,7 @@ std::vector<std::vector<cv::Point2f> > DotDetector::paringBlobPair(){
             pairedTrio.push_back(feature_visualization);
         }
     }
-    printf("Avant %3d Après %3d\n", trioStack.size(), pairedTrio.size());
+    printf("Avant %3d Après %3d\n", pairStack.size(), pairedTrio.size());
 
     return pairedTrio;
 }

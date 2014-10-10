@@ -62,6 +62,8 @@ public:
                           const std::vector<double> pCameraDistortionCoeffs);
 
   cv::Mat getVisualisationImg();
+  void setRatioDotOnCameraPlan(double pRatioDotOnCameraPlan);
+
 /**
   * Detect duo of marker with almost no filtering, so it can later be convert to a Mathlab compatible file format.
   */
@@ -93,13 +95,14 @@ private:
   cv::Mat visualisationImg;
   double highHOrange, highSOrange, highVOrange, lowHOrange, lowSOrange, lowVOrange;
   double dilatation, erosion, max_angle;
+  double ratioDotOnCameraPlan; // Percentage of the distance between two blobs where the dot on the camera plan is
 
   cv::Mat cameraMatrixK, cameraMatrixP;
   std::vector<double> cameraDistortionCoeffs;
 
   std::vector<std::map <std::string, double> > contoursFeatures;
   std::vector<cv::Point2f> contoursPosition;
-  std::vector< std::vector<int> > trioStack;
+  std::vector< std::vector<int> > pairStack;
 
 };
 

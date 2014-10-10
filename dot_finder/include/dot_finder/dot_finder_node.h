@@ -46,21 +46,21 @@ class DotFinder{
 public:
   DotFinder();
   ~DotFinder();
-  void cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& msg);
-  void imageCallback(const sensor_msgs::Image::ConstPtr& image_msg);
+  void cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr& pMsg);
+  void imageCallback(const sensor_msgs::Image::ConstPtr& pImageMsg);
 
-  void dynamicParametersCallback(dot_finder::DotFinderConfig &config, uint32_t level);
+  void dynamicParametersCallback(dot_finder::DotFinderConfig &pConfig, uint32_t pLevel);
 
 
 private:
   void createPublishers();
   void createSubscribers();
 
-  void publishDetectedDot(cv::Mat &image);
+  void detectAndPublishMarkers(cv::Mat &pImage);
   dot_finder::DuoDot generateDotHypothesisMessage(std::vector< std::vector<cv::Point2f> > pDots);
-  void publishVisualizationImage(const sensor_msgs::Image::ConstPtr& image_msg);
+  void publishVisualizationImage(const std_msgs::Header &pHeaderMsg);
 
-  void saveDetectedData(cv::Mat &image);
+  void saveDetectedData(cv::Mat &pImage);
   vector<int> getHumanInputTrueFinding();
 
   string topic; //!< Camera node to subscribe
@@ -84,14 +84,14 @@ private:
 
   cv::Rect regionOfInterest;
   cv::Mat cameraMatrixK; //!< Variable to store the camera matrix as an OpenCV matrix
-  std::vector< std::vector<cv::Point2f> > trioDistorted; //!< Trio dot with distortion (for visualisation)
+  std::vector< std::vector<cv::Point2f> > pairDistorted; //!< Trio dot with distortion (for visualisation)
   std::vector< std::vector<cv::Point2f> > dotsHypothesisDistorted; //!< Dual marquer with distortion (for visualisation)
   Eigen::Matrix<double, 3, 4> cameraProjectionMatrix; //!< Stores the camera calibration matrix. This is the 3x4 projection matrix that projects the world points to the image coordinates stored in #image_points_.
 
 
   bool infoToggle;
   bool duoToggle;
-  bool trioToggle;
+  bool pairToggle;
   bool trainingToggle;
 
 };
