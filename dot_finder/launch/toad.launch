@@ -1,0 +1,9 @@
+<launch>
+        <group ns="toad">
+                  <node name="dot_finder" pkg="dot_finder" type="dot_finder" output="screen">
+                        <param name="topic" value="/toad" />
+                        <param name="ratio" value="0.5" />
+                </node>
+        </group>
+
+</launch>

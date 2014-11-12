@@ -1,6 +1,6 @@
 <launch>
-	<group ns="king">
-	      	<node name="ardrone_driver" pkg="ardrone_autonomy" type="ardrone_driver" args="-ip 192.168.1.11 -navdata-port 1554 -video-port 1555 -at-port 1556" >
+	<group ns="peach">
+	      	<node name="ardrone_driver" pkg="ardrone_autonomy" type="ardrone_driver" args="-ip 192.168.1.110 -navdata-port 3554 -video-port 3555 -at-port 3556" >
 			<param name="max_bitrate" value="4000" />
 			<param name="bitrate" value="4000" />
 			<param name="outdoor" value="1" />
@@ -11,8 +11,8 @@
 		</node>
 	</group>
 
-        <group ns="mamba">
-	      	<node name="ardrone_driver" pkg="ardrone_autonomy" type="ardrone_driver" args="-ip 192.168.1.10 -navdata-port 2554 -video-port 2555 -at-port 2556" >
+        <group ns="toad">
+	      	<node name="ardrone_driver" pkg="ardrone_autonomy" type="ardrone_driver" args="-ip 192.168.1.111 -navdata-port 4554 -video-port 4555 -at-port 4556" >
 		    	<param name="max_bitrate" value="4000" />
 		    	<param name="bitrate" value="4000" />
 			<param name="outdoor" value="1" />

@@ -1,0 +1,5 @@
+<launch>
+	<include file="$(find dot_finder)/launch/peach.launch"/>
+	<include file="$(find dot_finder)/launch/toad.launch"/>
+</launch>
+

@@ -1,0 +1,10 @@
+<launch>
+        <group ns="follower">
+	      	<node name="dot_finder" pkg="cube_dot_finder" type="dot_finder" output="screen">
+			<param name="topic" value="/tryphon243" />
+			<param name="ratio" value="1" />
+		</node>
+        </group>
+
+</launch>
+

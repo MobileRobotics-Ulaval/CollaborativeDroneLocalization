@@ -1,7 +1,7 @@
 <launch>
       	<node name="particle_filter" pkg="particle_filter" type="particle_filter" output="screen">
-		<param name="leader" value="/king" />
-		<param name="follower" value="/mamba" />
+		<param name="leader" value="/peach" />
+		<param name="follower" value="/toad" />
 	</node>
 
 </launch>
