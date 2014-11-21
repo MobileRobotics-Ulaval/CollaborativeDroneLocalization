@@ -13,9 +13,17 @@ void MutualPoseEstimation::setMarkersParameters(const double distanceRightLedRob
     this->rdB = distanceRightLedRobotB; this->ldB = distanceLeftLedRobotB;
 }
 
-void MutualPoseEstimation::setCameraParameters(const Eigen::Vector2d pFocalCam, const Eigen::Vector2d pCenterCam){
+void MutualPoseEstimation::setCameraParameters(const Eigen::Vector2d pFocalCam, const Eigen::Vector2d pCenterCam, int pWidth, int pHeight){
+//    Eigen::Matrix2d switcheXandY;
+//    switcheXandY(0,0) = 0; switcheXandY(0,1) = 1;
+//    switcheXandY(1,0) = 1; switcheXandY(1,1) = 0;
+//    this->focalCam = switcheXandY * pFocalCam;
+//    this->centerCam = switcheXandY * pCenterCam;
     this->focalCam = pFocalCam;
     this->centerCam = pCenterCam;
+
+    this->width = pWidth;
+    this->height = pHeight;
 }
 
 
@@ -46,8 +54,8 @@ visualization_msgs::Marker MutualPoseEstimation::generateMarkerMessage(const Eig
     marker.pose.position.y = position[1];
     marker.pose.position.z = position[2];
 
-    rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ())
-               * rotation;
+    /*rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ())
+               * rotation;*/
 
     Eigen::Quaterniond q = Eigen::Quaterniond(rotation);
 //    marker.pose.orientation.x = q.z();
@@ -74,8 +82,8 @@ geometry_msgs::PoseStamped MutualPoseEstimation::generatePoseMessage(const Eigen
     estimated_position.pose.position.y = position[1];
     estimated_position.pose.position.z = position[2];
 
-    rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ())
-               * rotation;
+    /*rotation = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ())
+               * rotation;*/
 
     Eigen::Quaterniond q = Eigen::Quaterniond(rotation);
 //    estimated_position.pose.orientation.x = q.z();
@@ -97,18 +105,51 @@ double MutualPoseEstimation::comparePoseABtoBA(const Eigen::Vector2d &pixelA1, c
     Eigen::Matrix3d rotationBA;
     Eigen::Vector3d positionBA;
 
-    this->compute3DMutualLocalisation(pixelA1, pixelA2,
-                                      pixelB1, pixelB2,
+    // We inverse the x and y, 'cause of the image on the cube
+    Eigen::Vector2d lPixelA1;
+    Eigen::Vector2d lPixelA2;
+    Eigen::Vector2d lPixelB1;
+    Eigen::Vector2d lPixelB2;
+    Eigen::Matrix2d switcheXandY;
+//    switcheXandY(0,0) = 0; switcheXandY(0,1) = 1;
+//    switcheXandY(1,0) = 1; switcheXandY(1,1) = 0;
+//    lPixelA1 = switcheXandY * pixelA1;
+//    lPixelA2 = switcheXandY * pixelA2;
+//    lPixelB1 = switcheXandY * pixelB1;
+//    lPixelB2 = switcheXandY * pixelB2;
+
+    lPixelA1 = pixelA1;
+    lPixelA2 = pixelA2;
+    lPixelB1 = pixelB1;
+    lPixelB2 = pixelB2;
+
+
+    cout<<"pixelA1:"<<pixelA1<<endl;
+    cout<<"pixelA2:"<<pixelA2<<endl;
+    cout<<"pixelB1:"<<pixelB1<<endl;
+    cout<<"pixelB2:"<<pixelB2<<endl;
+
+
+    this->compute3DMutualLocalisation(lPixelA1, lPixelA2,
+                                      lPixelB1, lPixelB2,
                                       positionAB, rotationAB);
 
 
-    this->compute3DMutualLocalisation(pixelB1, pixelB2,
-                                      pixelA1, pixelA2,
+    this->compute3DMutualLocalisation(lPixelB1, lPixelB2,
+                                      lPixelA1, lPixelA2,
                                       positionBA, rotationBA);
     //this->centerCam = notDOTHAT;
     double distanceError = positionAB.norm() - positionBA.norm();
     return distanceError;
 }
+
+Eigen::Vector2d MutualPoseEstimation::fromXYCoordinateToUVCoordinate(const Eigen::Vector2d &vXY){
+    Eigen::Vector2d vUV;
+    vUV[0] = this->width - vXY[0];
+    vUV[1] = this->height - vXY[1];
+    return vUV;
+}
+
 
 /**
    * Compute the 3D pose in 6DOF using to camera for mutual localization
@@ -123,17 +164,33 @@ double MutualPoseEstimation::comparePoseABtoBA(const Eigen::Vector2d &pixelA1, c
    * \return the rotation matrix of the relative pose
    *
    */
-void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pixelA1, const Eigen::Vector2d &pixelA2,
-                                                       const Eigen::Vector2d &pixelB1,const  Eigen::Vector2d &pixelB2,
+void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &lPixelA1, const Eigen::Vector2d &lPixelA2,
+                                                       const Eigen::Vector2d &lPixelB1,const  Eigen::Vector2d &lPixelB2,
                                                        Eigen::Vector3d &position, Eigen::Matrix3d &rotation){
 
   Eigen::Vector2d fCamA = this->focalCam;
   Eigen::Vector2d fCamB = this->focalCam;
-  Eigen::Vector2d ppA = this->centerCam;
-  Eigen::Vector2d ppB = this->centerCam;
+  Eigen::Vector2d ppA, pixelA1, pixelA2, pixelB1, pixelB2;
+  if(ConventionUV){ // Oliver's code use the uv convention ( u point left and v point up)
+      ppA = this->centerCam;
+      pixelA1 = lPixelA1;
+      pixelA2 = lPixelA2;
+      pixelB1 = lPixelB1;
+      pixelB2 = lPixelB2;
+  }
+  else{
+      ppA = fromXYCoordinateToUVCoordinate(this->centerCam);
+      pixelA1 = fromXYCoordinateToUVCoordinate(lPixelA1);
+      pixelA2 = fromXYCoordinateToUVCoordinate(lPixelA2);
+      pixelB1 = fromXYCoordinateToUVCoordinate(lPixelB1);
+      pixelB2 = fromXYCoordinateToUVCoordinate(lPixelB2);
+  }
+  Eigen::Vector2d ppB = ppA;
+  //Eigen::Vector2d ppA = 0;
+  //Eigen::Vector2d ppB = 0;
 
-  /*
-  cout<<"-Parameters-"<<endl;
+
+  /*cout<<"-Parameters-"<<endl;
   cout<<"pixelA1:"<<pixelA1<<endl;
   cout<<"pixelA2:"<<pixelA2<<endl;
   cout<<"pixelB1:"<<pixelB1<<endl;
@@ -147,8 +204,17 @@ void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pi
   cout<<"rdB:"<<rdB<<endl;
   cout<<"ldB:"<<ldB<<endl;*/
 
-  Eigen::Vector3d PAM1((pixelB1[0]-ppB[0])/fCamB[0], (pixelB1[1]-ppB[1])/fCamB[1], 1);
-  Eigen::Vector3d PAM2((pixelB2[0]-ppB[0])/fCamB[0], (pixelB2[1]-ppB[1])/fCamB[1], 1);
+  //Eigen::Vector3d PAM1, PAM2;
+  //if (ConventionUV) {
+   Eigen::Vector3d PAM1((pixelB1[0]-ppB[0])/fCamB[0], (pixelB1[1]-ppB[1])/fCamB[1], 1);
+   Eigen::Vector3d PAM2((pixelB2[0]-ppB[0])/fCamB[0], (pixelB2[1]-ppB[1])/fCamB[1], 1);
+//  }
+//  else {
+//    // Convention x-y
+//    PAM1((ppB[0]-pixelB1[0])/fCamB[0], (ppB[1]-pixelB1[1])/fCamB[1], 1);
+//    PAM2((ppB[0]-pixelB2[0])/fCamB[0], (ppB[1]-pixelB2[1])/fCamB[1], 1);
+//  }
+
   PAM1.normalize();
   PAM2.normalize();
   double alpha = acos(PAM1.dot(PAM2));
@@ -218,17 +284,6 @@ void MutualPoseEstimation::compute3DMutualLocalisation(const Eigen::Vector2d &pi
 
   rotation =  AlignVectors * AlignPlans;
 
-  //Correction of the depth error:
-  if(false){
-      Eigen::Vector3d s_a(0, 0, 0.03); // 3 cm back from the plane
-      double s_a_norm = s_a.norm();
-      double distance = position.norm();
-
-      double angle_error = acos( position.dot(s_a) / (distance*s_a_norm) );
-      ROS_INFO("Errr: %f",angle_error);
-
-      position = s_a_norm*cos(angle_error)*position/distance;
-  }
 }
 
 Eigen::Vector2d MutualPoseEstimation::computePositionMutual(double alpha, double beta, double d){

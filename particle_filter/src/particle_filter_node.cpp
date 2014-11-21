@@ -11,9 +11,10 @@ ParticleFilter::ParticleFilter(ros::NodeHandle n) :
     haveCameraInfo(false),
     leaderDotsInitiation(false),
     followerDotsInitiation(false),
-    leaderImuInitiation(false),
-    followerImuInitiation(false)
+    leaderImuInitiation(true), // <-------------- Dont forget to reset it to false -------------------
+    followerImuInitiation(true)
   {
+
   string topic_leader, topic_follower;
   ros::param::get("~leader", topic_leader);
   ros::param::get("~follower", topic_follower);
@@ -46,11 +47,11 @@ void ParticleFilter::createSubscribers(const string& topic_leader, const string&
     this->subDotsLeader = this->nodeHandler.subscribe(topic_leader + "/dots", 1, &ParticleFilter::leaderDotsCallback, this);
     this->subDotsFollower = this->nodeHandler.subscribe(topic_follower + "/dots", 1, &ParticleFilter::followerDotsCallback, this);
 
-    this->subImuLeader = this->nodeHandler.subscribe(topic_leader + "/ardrone/imu", 1, &ParticleFilter::leaderImuCallback, this);
-    this->subImuFollower = this->nodeHandler.subscribe(topic_follower + "/ardrone/imu", 1, &ParticleFilter::followerImuCallback, this);
+    this->subImuLeader = this->nodeHandler.subscribe(topic_leader + "/imu", 1, &ParticleFilter::leaderImuCallback, this);
+    this->subImuFollower = this->nodeHandler.subscribe(topic_follower + "/imu", 1, &ParticleFilter::followerImuCallback, this);
 
-    this->subVisualizationLeader = this->nodeHandler.subscribe(topic_leader + "/ardrone/image_raw", 1, &ParticleFilter::visualizationCallbackLeader, this);
-    this->subVisualizationFollower = this->nodeHandler.subscribe(topic_follower + "/ardrone/image_raw", 1, &ParticleFilter::visualizationCallbackFollower, this);
+    this->subVisualizationLeader = this->nodeHandler.subscribe(topic_leader + "/image_raw", 1, &ParticleFilter::visualizationCallbackLeader, this);
+    this->subVisualizationFollower = this->nodeHandler.subscribe(topic_follower + "/image_raw", 1, &ParticleFilter::visualizationCallbackFollower, this);
 
     this->subCameraInfo = this->nodeHandler.subscribe(topic_leader + "/ardrone/camera_info", 1, &ParticleFilter::cameraInfoCallback, this);
 
@@ -113,6 +114,11 @@ bool ParticleFilter::isAllMessageInitiated(){
 }
 
 void ParticleFilter::runParticleFilter(){
+    if(!this->haveCameraInfo){
+        ROS_WARN_ONCE("No camera_info");
+        return;
+    }
+
     ListVector2d leaderLeftDot     = fromROSPoseArrayToVector2d(this->leaderLastMsg.leftDot);
     ListVector2d leaderRightDot    = fromROSPoseArrayToVector2d(this->leaderLastMsg.rightDot);
     ListVector2d followerLeftDot   = fromROSPoseArrayToVector2d(this->followerLastMsg.leftDot);
@@ -133,7 +139,7 @@ void ParticleFilter::runParticleFilter(){
             weight = this->poseEvaluator.comparePoseABtoBA(leaderLeftDot[i], leaderRightDot[i],
                                                            followerLeftDot[j], followerRightDot[j],
                                                            position, rotation);
-            //cout << i << " on " << j << " Weight: " << weight << endl << "Pose: "<< position.transpose() << endl;
+            cout << i << " on " << j << " Weight: " << weight << endl << "Pose: "<< position.transpose() << endl;
 
             // Create for a rviz Marker for each combination of dots, with a tranparency factor of 0.3
             candidatesMarkerMsgs.markers.push_back(MutualPoseEstimation::generateMarkerMessage(position, rotation, 0.3));
@@ -147,7 +153,9 @@ void ParticleFilter::runParticleFilter(){
     }
     if(best >= 0){
         printf("=> Best: %6.4f \nPose: ", best);
-        cout << bestPosition.transpose() << endl<<"Distance: "<< bestPosition.norm() << endl << endl;
+        cout << bestPosition.transpose() << endl<<"Distance: "<< bestPosition.norm() << endl;
+        cout << "Position:" << endl << bestPosition << endl;
+        cout << "Rotation:" << endl << bestRotation << endl << endl;
 
 
         this->pubPose.publish(MutualPoseEstimation::generatePoseMessage(bestPosition, bestRotation));
@@ -225,6 +233,33 @@ void ParticleFilter::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr&
         cameraMatrixP.at<double>(2, 2) = camInfo.P[10];
         cameraMatrixP.at<double>(2, 3) = camInfo.P[11];
 
+        //--This bullshit the camera_info:--------
+        /*cameraDistortionCoeffs.clear();
+        cameraDistortionCoeffs.push_back(-0.437907); cameraDistortionCoeffs.push_back(0.250064); cameraDistortionCoeffs.push_back(-0.000201); cameraDistortionCoeffs.push_back(0.000889); cameraDistortionCoeffs.push_back(0);
+        cameraMatrixK.at<double>(0, 0) = 653.321611;
+        cameraMatrixK.at<double>(0, 1) = 0;
+        cameraMatrixK.at<double>(0, 2) = 298.373876;
+        cameraMatrixK.at<double>(1, 0) = 0;
+        cameraMatrixK.at<double>(1, 1) = 653.578458;
+        cameraMatrixK.at<double>(1, 2) = 248.245372;
+        cameraMatrixK.at<double>(2, 0) = 0;
+        cameraMatrixK.at<double>(2, 1) = 0;
+        cameraMatrixK.at<double>(2, 2) = 1;
+
+        cameraMatrixP.at<double>(0, 0) = 580.062195;
+        cameraMatrixP.at<double>(0, 1) = 0;
+        cameraMatrixP.at<double>(0, 2) = 293.390346;
+        cameraMatrixP.at<double>(0, 3) = 0;
+        cameraMatrixP.at<double>(1, 0) = 0;
+        cameraMatrixP.at<double>(1, 1) = 611.916138;
+        cameraMatrixP.at<double>(1, 2) = 248.75701;
+        cameraMatrixP.at<double>(1, 3) = 0;
+        cameraMatrixP.at<double>(2, 0) = 0;
+        cameraMatrixP.at<double>(2, 1) = 0;
+        cameraMatrixP.at<double>(2, 2) = 1;
+        cameraMatrixP.at<double>(2, 3) = 0;*/
+        //--End of bullshit:--------
+
         this->haveCameraInfo = true;
         ROS_INFO("Camera calibration information obtained.");
 
@@ -234,7 +269,7 @@ void ParticleFilter::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr&
 
         center[0] = cameraMatrixK.at<double>(0, 2);
         center[1] = cameraMatrixK.at<double>(1, 2);
-        this->poseEvaluator.setCameraParameters(focal, center);
+        this->poseEvaluator.setCameraParameters(focal, center, camInfo.width, camInfo.height);
 
         this->visualization.setCameraParameter(cameraMatrixK,
                                                cameraMatrixP,

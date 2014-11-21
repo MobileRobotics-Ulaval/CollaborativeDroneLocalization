@@ -25,7 +25,8 @@ namespace dot_finder
  */
 DotFinder::DotFinder():
     trainingToggle(false),
-    haveCameraInfo(false)
+    haveCameraInfo(false),
+    imageTransport(nodeHandle)
 {
   // Generate the name of the publishing and subscribing topics
   ros::param::get("~topic", this->topic);
@@ -56,12 +57,16 @@ DotFinder::DotFinder():
 
 void DotFinder::createPublishers(){
     image_transport::ImageTransport image_transport(this->nodeHandle);
-    this->pubImage = image_transport.advertise(topic + "/ardrone/image_with_detections", 1);
+    this->pubImage = image_transport.advertise(topic + "/ardrone/test/image_with_detections", 1);
     this->pubDotHypothesis = this->nodeHandle.advertise<dot_finder::DuoDot>(topic  + "/dots", 1);
 }
 
 void DotFinder::createSubscribers(){
-   this->subImage = this->nodeHandle.subscribe(this->topic + "/ardrone/image_raw", 1, &DotFinder::imageCallback, this);
+   //this->subImage = this->nodeHandle.subscribe(this->topic + "/ardrone/image_raw", 1, &DotFinder::imageCallback, this);
+    imageSubscriber = imageTransport.subscribe(
+                                            this->topic + "/ardrone/image_raw", 1,
+                                            &DotFinder::imageCallback, this,
+                                            image_transport::TransportHints("compressed"));
    this->subCameraInfo = this->nodeHandle.subscribe(this->topic + "/ardrone/camera_info", 1, &DotFinder::cameraInfoCallback, this);
 }
 

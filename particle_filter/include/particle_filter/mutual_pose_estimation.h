@@ -20,7 +20,7 @@ class MutualPoseEstimation
 public:
     void setMarkersParameters(const double distanceRightLedRobotA, const double distanceLeftLedRobotA,
                              const double distanceRightLedRobotB, const double distanceLeftLedRobotB);
-    void setCameraParameters(const Eigen::Vector2d pFocalCam, const Eigen::Vector2d pCenterCam);
+    void setCameraParameters(const Eigen::Vector2d pFocalCam, const Eigen::Vector2d pCenterCam, int pWidth, int pHeight);
 
     double comparePoseABtoBA(const Eigen::Vector2d &pixelA1, const Eigen::Vector2d &pixelA2,
                              const Eigen::Vector2d &pixelB1, const Eigen::Vector2d &pixelB2,
@@ -33,12 +33,17 @@ public:
                                      Eigen::Vector3d & position, Eigen::Matrix3d & rotation);
 
 private:
+    Eigen::Vector2d fromXYCoordinateToUVCoordinate(const Eigen::Vector2d &vXY);
     Eigen::Vector2d computePositionMutual(double alpha, double beta, double d);
     Eigen::Matrix3d vrrotvec2mat(double p, Eigen::Vector3d r);
 
 
+
     Eigen::Vector2d focalCam, centerCam;
     double rdA, ldA, rdB, ldB;
+    int width, height;
+
+    const bool ConventionUV = false;
 };
 }
 #endif // POSE_ESTIMATION_H

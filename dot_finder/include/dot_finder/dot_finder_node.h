@@ -29,6 +29,8 @@
 
 #include <opencv2/opencv.hpp>
 #include <image_transport/image_transport.h>
+#include <sensor_msgs/CompressedImage.h>
+#include <sensor_msgs/image_encodings.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv/cvwimage.h>
 #include <opencv/highgui.h>
@@ -37,6 +39,7 @@
 #include <dot_finder/DotFinderConfig.h>
 #include <dot_finder/dot_detector.h>
 #include <dot_finder/visualization.h>
+
 
 #include <dot_finder/DuoDot.h>
 
@@ -73,9 +76,13 @@ private:
 
   ros::Subscriber subImage; //!< The ROS subscriber to the raw camera image
   ros::Subscriber subCameraInfo; //!< The ROS subscriber to the camera info
+  image_transport::ImageTransport imageTransport;
+  image_transport::Subscriber imageSubscriber;
 
   dynamic_reconfigure::Server<dot_finder::DotFinderConfig> dynamicReconfigServer; //!< The dynamic reconfigure server
   dynamic_reconfigure::Server<dot_finder::DotFinderConfig>::CallbackType dynamicReconfigCallback; //!< The dynamic reconfigure callback type
+
+
 
   //geometry_msgs::PoseWithCovarianceStamped predicted_pose_; //!< The ROS message variable for the estimated pose and covariance of the object
 
